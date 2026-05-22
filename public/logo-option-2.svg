@@ -1,0 +1,26 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient definitions -->
+  <defs>
+    <linearGradient id="bgGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0369A1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00B4D8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded square background -->
+  <rect width="200" height="200" rx="50" fill="url(#bgGradient2)"/>
+  
+  <!-- Camera icon (left side) -->
+  <rect x="50" y="65" width="70" height="55" rx="6" fill="#FFFFFF" opacity="0.95"/>
+  
+  <!-- Camera lens -->
+  <circle cx="85" cy="92" r="14" fill="#00B4D8" opacity="0.2" stroke="#FFFFFF" stroke-width="1.5"/>
+  <circle cx="85" cy="92" r="10" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  
+  <!-- Checkmark icon (right side, overlapping) -->
+  <rect x="110" y="70" width="50" height="50" rx="8" fill="#10B981" opacity="0.9"/>
+  <path d="M 125 100 L 135 110 L 155 85" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Decorative line -->
+  <line x1="105" y1="75" x2="105" y2="115" stroke="#FFFFFF" stroke-width="2" opacity="0.5"/>
+</svg>
