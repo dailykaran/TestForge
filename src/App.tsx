@@ -31,9 +31,9 @@ export default function App() {
 
   useEffect(() => {
     // Listen for actions from IPC
-    if (window.ipcRenderer) {
-      const unsubscribe = window.ipcRenderer.on('action-captured', (_, action: ActionEvent) => {
-        addAction(action);
+      if (window.ipcRenderer) {
+      const unsubscribe = window.ipcRenderer.on('action-captured', (_, action) => {
+        addAction(action as ActionEvent);
       });
       return () => {
         if (unsubscribe) unsubscribe();
@@ -55,7 +55,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
       {/* Basic Titlebar Drag Area */}
-      <div className="h-8 w-full bg-slate-800 shrink-0 select-none flex items-center px-4" style={{ WebkitAppRegion: 'drag' } as any}>
+      <div className="h-8 w-full bg-slate-800 shrink-0 select-none flex items-center px-4" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
         <span className="text-xs font-semibold text-slate-300">TestForge</span>
       </div>
       

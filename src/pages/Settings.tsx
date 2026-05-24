@@ -1,18 +1,132 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { ArrowLeft, Save, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Save, ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
+import { isValidApiKeyFormat } from '../utils/validation';
 
 export default function Settings() {
-  const { geminiApiKey, claudeApiKey, defaultModel, setApiKeys, setDefaultModel, setRoute } = useAppStore();
+  const { defaultModel, setDefaultModel, setRoute } = useAppStore();
 
-  const [geminiKeyInput, setGeminiKeyInput] = useState(geminiApiKey);
-  const [claudeKeyInput, setClaudeKeyInput] = useState(claudeApiKey);
+  const [geminiKeyInput, setGeminiKeyInput] = useState('');
+  const [claudeKeyInput, setClaudeKeyInput] = useState('');
   const [modelInput, setModelInput] = useState(defaultModel);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [geminiKeyExists, setGeminiKeyExists] = useState(false);
+  const [claudeKeyExists, setClaudeKeyExists] = useState(false);
 
-  const handleSave = () => {
-    setApiKeys({ gemini: geminiKeyInput, claude: claudeKeyInput });
-    setDefaultModel(modelInput);
-    setRoute('dashboard');
+  // Sync model input when store's defaultModel changes
+  useEffect(() => {
+    // Defer to avoid triggering synchronous setState during effect
+    const t = setTimeout(() => setModelInput(defaultModel), 0);
+    return () => clearTimeout(t);
+  }, [defaultModel]);
+
+  // Load API key status on component mount
+  useEffect(() => {
+    const loadKeyStatus = async () => {
+      try {
+        if (!window.ipcRenderer) {
+          console.error('IPC Renderer not available');
+          return;
+        }
+        
+        try {
+          const geminiExists = await window.ipcRenderer.invoke('get-gemini-api-key') as boolean;
+          setGeminiKeyExists(Boolean(geminiExists));
+        } catch (error) {
+          console.error('Error loading Gemini key status:', error);
+          setGeminiKeyExists(false);
+        }
+        
+        try {
+          const claudeExists = await window.ipcRenderer.invoke('get-claude-api-key') as boolean;
+          setClaudeKeyExists(Boolean(claudeExists));
+        } catch (error) {
+          console.error('Error loading Claude key status:', error);
+          setClaudeKeyExists(false);
+        }
+      } catch (error) {
+        console.error('Error loading key status:', error);
+      }
+    };
+    
+    // Delay to ensure IPC is ready
+    const timer = setTimeout(loadKeyStatus, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveStatus(null);
+
+    try {
+      // Validate API key formats if provided
+      if (geminiKeyInput.trim() && !isValidApiKeyFormat(geminiKeyInput, 'gemini')) {
+        throw new Error('Invalid Gemini API key format. Should start with "AIza"');
+      }
+
+      if (claudeKeyInput.trim() && !isValidApiKeyFormat(claudeKeyInput, 'claude')) {
+        throw new Error('Invalid Claude API key format. Should start with "sk-ant-"');
+      }
+
+      // Save Gemini key if provided
+      if (geminiKeyInput.trim()) {
+        const result = await window.ipcRenderer.invoke('set-gemini-api-key', geminiKeyInput) as { success?: boolean; message?: string } | null;
+        if (!result?.success) {
+          throw new Error(result?.message || 'Failed to save Gemini API key');
+        }
+        setGeminiKeyExists(true);
+        setGeminiKeyInput('');
+      }
+
+      // Save Claude key if provided
+      if (claudeKeyInput.trim()) {
+        const result = await window.ipcRenderer.invoke('set-claude-api-key', claudeKeyInput) as { success?: boolean; message?: string } | null;
+        if (!result?.success) {
+          throw new Error(result?.message || 'Failed to save Claude API key');
+        }
+        setClaudeKeyExists(true);
+        setClaudeKeyInput('');
+      }
+
+      // Save model preference
+      setDefaultModel(modelInput);
+
+      setSaveStatus({
+        type: 'success',
+        message: 'Settings saved successfully. API keys stored securely in OS keychain.'
+      });
+
+      setTimeout(() => {
+        setRoute('dashboard');
+      }, 1500);
+    } catch (error: unknown) {
+      setSaveStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : String(error) || 'Failed to save settings'
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleClearKeys = async () => {
+    if (confirm('Are you sure you want to clear all saved API keys?')) {
+      try {
+        await window.ipcRenderer.invoke('clear-api-keys');
+        setGeminiKeyExists(false);
+        setClaudeKeyExists(false);
+        setSaveStatus({
+          type: 'success',
+          message: 'API keys cleared successfully'
+        });
+      } catch (error: unknown) {
+        setSaveStatus({
+          type: 'error',
+          message: error instanceof Error ? error.message : String(error) || 'Failed to clear API keys'
+        });
+      }
+    }
   };
 
   return (
@@ -29,44 +143,94 @@ export default function Settings() {
         </div>
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20"
+          disabled={isSaving}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20"
         >
           <Save className="w-5 h-5" />
-          Save Changes
+          {isSaving ? 'Saving...' : 'Save Changes'}
         </button>
       </header>
 
       <div className="flex-1 p-8 max-w-4xl mx-auto w-full space-y-8">
+        
+        {/* Status Message */}
+        {saveStatus && (
+          <div className={`flex items-center gap-3 p-4 rounded-xl ${
+            saveStatus.type === 'success'
+              ? 'bg-emerald-900/20 border border-emerald-500/30'
+              : 'bg-red-900/20 border border-red-500/30'
+          }`}>
+            {saveStatus.type === 'success' ? (
+              <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            )}
+            <p className={saveStatus.type === 'success' ? 'text-emerald-200' : 'text-red-200'}>
+              {saveStatus.message}
+            </p>
+          </div>
+        )}
+
         <section className="bg-slate-800/50 rounded-3xl p-8 border border-slate-700/50">
           <div className="flex items-center gap-3 mb-6">
             <ShieldCheck className="w-6 h-6 text-blue-400" />
             <h2 className="text-xl font-semibold">API Configuration</h2>
+            <span className="text-xs text-slate-400 ml-auto">🔐 Stored in OS Keychain</span>
           </div>
 
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Google Gemini API Key</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-400">Google Gemini API Key</label>
+                {geminiKeyExists && (
+                  <span className="text-xs bg-emerald-900/30 text-emerald-200 px-2 py-1 rounded">
+                    ✓ Configured
+                  </span>
+                )}
+              </div>
               <input
                 type="password"
                 value={geminiKeyInput}
                 onChange={(e) => setGeminiKeyInput(e.target.value)}
-                placeholder="AIzaSy..."
+                placeholder={geminiKeyExists ? "Leave blank to keep current key" : "AIzaSy..."}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
               />
-              <p className="text-xs text-slate-500 mt-2">Required for Gemini 2.0. Keys are stored locally.</p>
+              <p className="text-xs text-slate-500 mt-2">
+                Enter new key to update. Keys are securely stored in your OS keychain, never in the app.
+              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Anthropic Claude API Key</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-400">Anthropic Claude API Key</label>
+                {claudeKeyExists && (
+                  <span className="text-xs bg-emerald-900/30 text-emerald-200 px-2 py-1 rounded">
+                    ✓ Configured
+                  </span>
+                )}
+              </div>
               <input
                 type="password"
                 value={claudeKeyInput}
                 onChange={(e) => setClaudeKeyInput(e.target.value)}
-                placeholder="sk-ant-..."
+                placeholder={claudeKeyExists ? "Leave blank to keep current key" : "sk-ant-..."}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
               />
-              <p className="text-xs text-slate-500 mt-2">Required for Claude Sonnet 3.5+. Keys are stored locally.</p>
+              <p className="text-xs text-slate-500 mt-2">
+                Enter new key to update. Keys are securely stored in your OS keychain, never in the app.
+              </p>
             </div>
+
+            {(geminiKeyExists || claudeKeyExists) && (
+              <div className="pt-4 border-t border-slate-700">
+                <button
+                  onClick={handleClearKeys}
+                  className="text-sm text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Clear All API Keys
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
@@ -100,6 +264,21 @@ export default function Settings() {
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="bg-slate-800/50 rounded-3xl p-8 border border-slate-700/50">
+          <h2 className="text-xl font-semibold mb-4">Security Information</h2>
+          <div className="space-y-3 text-sm text-slate-400">
+            <p>✓ API keys are stored in your operating system's secure keychain:</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li><strong>Windows:</strong> Credential Manager</li>
+              <li><strong>macOS:</strong> Keychain</li>
+              <li><strong>Linux:</strong> Secret Service</li>
+            </ul>
+            <p className="mt-4">✓ API keys are never stored in the app or visible in DevTools</p>
+            <p>✓ Test case generation happens on your computer's main process, away from browser context</p>
+            <p>✓ File paths are validated to prevent unauthorized access</p>
           </div>
         </section>
       </div>

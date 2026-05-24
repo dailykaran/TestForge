@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Monitor, ArrowLeft, Play, LayoutGrid } from 'lucide-react';
+import { Monitor, ArrowLeft, Play, LayoutGrid, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 
 interface ScreenSource {
   id: string;
@@ -9,7 +9,7 @@ interface ScreenSource {
 }
 
 export default function RecordingSetup() {
-  const { setRoute, setSelectedSource, selectedSourceId } = useAppStore();
+  const { setRoute, setSelectedSource, selectedSourceId, audioEnabled, videoEnabled, setAudioEnabled, setVideoEnabled } = useAppStore();
   const [sources, setSources] = useState<ScreenSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +41,9 @@ export default function RecordingSetup() {
   };
 
   useEffect(() => {
-    loadSources();
+    // Delay loadSources to avoid synchronous setState during effect
+    const timer = setTimeout(() => { loadSources(); }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleStart = () => {
@@ -76,9 +78,35 @@ export default function RecordingSetup() {
       </header>
       
       <div className="flex-1 p-8">
-        <div className="flex items-center gap-2 mb-6 text-slate-300">
-          <LayoutGrid className="w-5 h-5" />
-          <h2 className="text-xl font-semibold">Select Screen or Window</h2>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2 text-slate-300">
+            <LayoutGrid className="w-5 h-5" />
+            <h2 className="text-xl font-semibold">Select Screen or Window</h2>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setVideoEnabled(!videoEnabled)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                videoEnabled
+                  ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-500/20'
+                  : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+              }`}
+            >
+              {videoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              Video
+            </button>
+            <button
+              onClick={() => setAudioEnabled(!audioEnabled)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                audioEnabled
+                  ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-500/20'
+                  : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+              }`}
+            >
+              {audioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+              Audio
+            </button>
+          </div>
         </div>
         
         {loading ? (

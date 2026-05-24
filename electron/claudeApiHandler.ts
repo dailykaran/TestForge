@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ActionEvent } from '../types.ts';
+import { ActionEvent } from '../src/types';
+import { getClaudeApiKey } from './keyStore';
 
 const SYSTEM_PROMPT = `
 You are a professional QA Engineer and Test Architect.
@@ -32,32 +33,30 @@ function formatActionsToText(actions: ActionEvent[]): string {
 }
 
 /**
- * Generates test cases using Claude API via Anthropic SDK
+ * Generates test cases using Claude API (called from main process)
  * @param actions - Array of recorded user actions
  * @param screenshots - Array of base64-encoded screenshot strings
- * @param apiKey - Anthropic API key for authentication
  * @param modelName - Model to use (default: claude-3-5-sonnet-20241022)
  * @returns Promise resolving to generated test cases as string
  */
 export async function generateTestCasesWithClaude(
   actions: ActionEvent[],
   screenshots: string[],
-  apiKey: string,
   modelName: string = 'claude-3-5-sonnet-20241022'
 ): Promise<string> {
   try {
+    // Get API key securely from OS keychain
+    const apiKey = await getClaudeApiKey();
     if (!apiKey?.trim()) {
-      throw new Error('API key is required');
+      throw new Error('Claude API key not found. Please configure it in Settings.');
     }
 
     if (actions.length === 0) {
       throw new Error('No actions provided for test case generation');
     }
 
-    const client = new Anthropic({ 
-      apiKey, 
-      dangerouslyAllowBrowser: true,
-    });
+    // Create client WITHOUT dangerouslyAllowBrowser flag (safe in main process)
+    const client = new Anthropic({ apiKey });
 
     // Build image content array
     const imageContent = screenshots
@@ -99,10 +98,9 @@ export async function generateTestCasesWithClaude(
 
     return textBlock.text || '';
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    // Preserve the original error as the cause regardless of its type
-    throw new Error(`Failed to generate test cases with Claude: ${errorMessage}`, {
-      cause: error,
-    });
+    if (error instanceof Error) {
+      throw new Error(`Failed to generate test cases with Claude: ${error.message}`, { cause: error });
+    }
+    throw error;
   }
 }

@@ -11,7 +11,31 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
-              external: ['uiohook-napi', 'screenshot-desktop', 'electron', 'fs', 'path', 'uuid']
+              external: [
+                // Native modules
+                'uiohook-napi',
+                'screenshot-desktop',
+                'electron',
+                'keytar',
+                // SDK packages
+                '@anthropic-ai/sdk',
+                '@google/genai',
+                // Node.js built-in modules
+                'fs',
+                'path',
+                'uuid',
+                'child_process',
+                'os',
+                'util',
+                'stream',
+                'buffer',
+                'zlib',
+                'http',
+                'https'
+              ],
+              output: {
+                format: 'es'
+              }
             },
             target: 'esnext',
             minify: false,
@@ -26,6 +50,23 @@ export default defineConfig({
       { 
         entry: 'electron/preload.ts',
         onstart: (options) => options.reload(),
+        vite: {
+          build: {
+            lib: {
+              entry: 'electron/preload.ts',
+              name: 'preload',
+              formats: ['cjs']
+            },
+            rollupOptions: {
+              output: {
+                format: 'cjs',
+                entryFileNames: '[name].js'
+              }
+            },
+            target: 'esnext',
+            minify: false,
+          }
+        }
       },
     ]),
   ],

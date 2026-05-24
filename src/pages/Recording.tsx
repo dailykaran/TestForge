@@ -11,39 +11,58 @@ const ActionType = {
 };
 
 export default function Recording() {
-  const { selectedSourceId, setRoute, setVideoPath, setRecording, actions } = useAppStore();
+  const { selectedSourceId, setRoute, setVideoPath, setRecording, actions, audioEnabled, videoEnabled } = useAppStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [timer, setTimer] = useState(0);
 
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval> | null = null;
     async function startCapture() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            // @ts-ignore
-            mandatory: {
-              chromeMediaSource: 'desktop',
-              chromeMediaSourceId: selectedSourceId,
-            },
-          },
-        });
+        let videoStream: MediaStream | null = null;
+        let audioStream: MediaStream | null = null;
 
-        let micStream: MediaStream | null = null;
-        try {
-          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (e) {
-          console.warn("No mic available");
+        // Get video stream if enabled
+        if (videoEnabled) {
+          videoStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              // @ts-expect-error - desktop capture constraint used for Electron desktopCapturer
+              mandatory: {
+                chromeMediaSource: 'desktop',
+                chromeMediaSourceId: selectedSourceId,
+              },
+            },
+          });
         }
 
-        const audioTracks = micStream ? micStream.getAudioTracks() : [];
-        const combinedStream = new MediaStream([
-          ...stream.getVideoTracks(),
-          ...audioTracks,
-        ]);
+        // Get audio stream if enabled
+        if (audioEnabled) {
+          try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          } catch {
+            console.warn("No mic available or audio permission denied");
+          }
+        }
+
+        // Build combined stream with available tracks
+        const tracks: MediaStreamTrack[] = [];
+        if (videoStream) {
+          tracks.push(...videoStream.getVideoTracks());
+        }
+        if (audioStream) {
+          tracks.push(...audioStream.getAudioTracks());
+        }
+
+        if (tracks.length === 0) {
+          console.error("No video or audio tracks available");
+          setRoute('setup');
+          return;
+        }
+
+        const combinedStream = new MediaStream(tracks);
 
         if (videoRef.current) {
           videoRef.current.srcObject = combinedStream;
@@ -61,7 +80,7 @@ export default function Recording() {
           const blob = new Blob(chunksRef.current, { type: 'video/webm; codecs=vp9' });
           const buffer = await blob.arrayBuffer();
           if (window.ipcRenderer) {
-            const savedPath = await window.ipcRenderer.invoke('save-video', new Uint8Array(buffer));
+            const savedPath = await window.ipcRenderer.invoke('save-video', new Uint8Array(buffer)) as string;
             setVideoPath(savedPath);
           } else {
             console.error("IPC Renderer not available for saving video");
@@ -93,7 +112,7 @@ export default function Recording() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [selectedSourceId]);
+  }, [selectedSourceId, setRecording, setRoute, setVideoPath, audioEnabled, videoEnabled]);
 
   const handleStop = () => {
     if (window.ipcRenderer) {

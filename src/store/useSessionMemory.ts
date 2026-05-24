@@ -10,7 +10,7 @@ import { create } from 'zustand';
 
 interface SessionMemoryState {
   // Generic key-value storage for temporary data
-  tempData: Record<string, any>;
+  tempData: Record<string, unknown>;
   
   // Session-specific settings
   lastGeneratedTestCase: string | null;
@@ -21,8 +21,8 @@ interface SessionMemoryState {
   expandedActionIds: Set<string>;
   
   // Methods
-  setTempData: (key: string, value: any) => void;
-  getTempData: (key: string) => any;
+  setTempData: (key: string, value: unknown) => void;
+  getTempData: (key: string) => unknown;
   deleteTempData: (key: string) => void;
   clearAllTempData: () => void;
   
@@ -37,7 +37,7 @@ interface SessionMemoryState {
 }
 
 const initialState = {
-  tempData: {} as Record<string, any>,
+  tempData: {} as Record<string, unknown>,
   lastGeneratedTestCase: null as string | null,
   sessionStartTime: Date.now(),
   generationHistory: [] as Array<{ timestamp: number; modelUsed: string; actionCount: number }>,
@@ -47,7 +47,7 @@ const initialState = {
 export const useSessionMemory = create<SessionMemoryState>((set) => ({
   ...initialState,
   
-  setTempData: (key: string, value: any) =>
+  setTempData: (key: string, value: unknown) =>
     set((state) => ({
       tempData: { ...state.tempData, [key]: value },
     })),

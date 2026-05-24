@@ -1,14 +1,12 @@
-// @ts-nocheck
 import screenshot from 'screenshot-desktop';
 import path from 'path';
 import fs from 'fs';
-import { app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
+import { getScreenshotsDir } from './pathValidator';
 
 export async function captureScreenshot(): Promise<string | null> {
   try {
-    const tempDir = app.getPath('temp');
-    const screenshotsDir = path.join(tempDir, 'screenshots');
+    const screenshotsDir = getScreenshotsDir();
     
     if (!fs.existsSync(screenshotsDir)) {
       fs.mkdirSync(screenshotsDir, { recursive: true });

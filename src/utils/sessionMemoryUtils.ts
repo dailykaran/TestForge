@@ -28,7 +28,7 @@ export function getSessionStartTime(): number {
     if (timestamp) {
       return parseInt(timestamp, 10);
     }
-  } catch (e) {
+  } catch {
     console.warn('Could not retrieve session start time from sessionStorage');
   }
   return Date.now();
@@ -41,7 +41,7 @@ export function getSessionStartTime(): number {
 export function setSessionStartTime(time: number) {
   try {
     sessionStorage.setItem('session_start_time', String(time));
-  } catch (e) {
+  } catch {
     console.warn('Could not store session start time in sessionStorage');
   }
 }
@@ -60,7 +60,7 @@ export function getSessionDuration(): number {
 export function clearSessionStorage() {
   try {
     sessionStorage.clear();
-  } catch (e) {
+  } catch {
     console.warn('Could not clear sessionStorage');
   }
 }

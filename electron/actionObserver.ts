@@ -1,6 +1,26 @@
-// @ts-nocheck
 import { uIOhook } from 'uiohook-napi';
-import type { UiohookMouseEvent, UiohookKeyboardEvent, UiohookWheelEvent } from 'uiohook-napi';
+
+type UiohookMouseEvent = {
+  type: number;
+  x: number;
+  y: number;
+  button?: number;
+  clicks?: number;
+};
+
+type UiohookKeyboardEvent = {
+  type: number;
+  keycode: number;
+  rawcode?: number;
+  mask?: number;
+};
+
+type UiohookWheelEvent = {
+  type: number;
+  amount?: number;
+  rotation: number;
+  direction?: number;
+};
 import { captureScreenshot } from './screenshotCapture';
 import { BrowserWindow } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
@@ -106,5 +126,7 @@ export function stopObserving() {
   isObserving = false;
   try {
     uIOhook.stop();
-  } catch(err) {}
+  } catch (error: unknown) {
+    console.warn('Failed to stop uIOhook', error);
+  }
 }

@@ -1,12 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { ArrowLeft, PlayCircle, Download, FileText, CheckCircle2, Wand2, Image as ImageIcon } from 'lucide-react';
-import { generateTestCasesWithGemini } from '../services/geminiService';
-import { generateTestCasesWithClaude } from '../services/claudeService';
 import { exportToDocx, exportToTxt } from '../services/exportService';
 
+async function downloadScreenshotFile(screenshotPath: string, actionLabel: string) {
+  try {
+    if (!screenshotPath) {
+      alert('Screenshot path not available');
+      return;
+    }
+    const b64 = (await window.ipcRenderer.invoke('read-file-base64', screenshotPath)) as string | null;
+    if (!b64) {
+      alert('Failed to read screenshot');
+      return;
+    }
+    const byteCharacters = atob(b64 as string);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const ts = Date.now();
+    a.download = `screenshot_${actionLabel.replace(/\s+/g, '_')}_${ts}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (error: unknown) {
+    console.error('Screenshot download error:', error);
+    alert(`Error downloading screenshot: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 export default function Review() {
-  const { actions, videoPath, geminiApiKey, claudeApiKey, defaultModel, setRoute, clearActions, setVideoPath } = useAppStore();
+  const { actions, videoPath, defaultModel, setRoute, clearActions, setVideoPath } = useAppStore();
   const [testCases, setTestCases] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingVideo, setIsSavingVideo] = useState(false);
@@ -22,28 +51,32 @@ export default function Review() {
         if (isMounted) setVideoBlobUrl(null);
         return;
       }
-      
+
       try {
         if (!window.ipcRenderer) {
           console.error('IPC Renderer not available');
           if (isMounted) setVideoBlobUrl(null);
           return;
         }
-        
+
         console.log('Loading video from path:', videoPath);
-        const base64Data = await window.ipcRenderer.invoke('read-file-base64', videoPath);
-        
+        const base64Data = (await window.ipcRenderer.invoke('read-file-base64', videoPath)) as string | null;
+
         if (!base64Data || base64Data.trim() === '') {
           console.error('Failed to read video file - empty base64 response');
           if (isMounted) setVideoBlobUrl(null);
           return;
         }
-        
+
         console.log('Base64 data received, size:', base64Data.length);
-        
-        // Convert base64 to blob using fetch API (more reliable)
-        const response = await fetch(`data:video/webm;base64,${base64Data}`);
-        const blob = await response.blob();
+
+        // Convert base64 to blob using atob for better reliability and performance
+        const binaryString = atob(base64Data as string);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'video/webm' });
         
         if (blob.size === 0) {
           console.error('Blob size is 0');
@@ -52,7 +85,7 @@ export default function Review() {
         }
         
         objectUrl = URL.createObjectURL(blob);
-        console.log('Video blob URL created:', objectUrl);
+        console.log('Video blob URL created:', objectUrl, 'Blob size:', blob.size);
         
         if (isMounted) {
           setVideoBlobUrl(objectUrl);
@@ -78,6 +111,22 @@ export default function Review() {
   }, [videoPath]);
   
   const handleGenerate = async () => {
+    // SECURITY: Show consent warning about screenshots containing sensitive data
+    const userConsents = confirm(
+      '⚠️ IMPORTANT SECURITY NOTICE\n\n' +
+      'Your screenshots will be sent to the AI API (Gemini or Claude) for test case generation.\n\n' +
+      'Screenshots may contain:\n' +
+      '• Passwords, tokens, or credentials\n' +
+      '• Personal or sensitive information\n' +
+      '• Proprietary data\n\n' +
+      'Only proceed if you have reviewed the content and consents to this.\n\n' +
+      'Do you want to continue?'
+    );
+
+    if (!userConsents) {
+      return;
+    }
+
     setIsGenerating(true);
     if (window.ipcRenderer) {
       window.ipcRenderer.send('set-generator-active', true);
@@ -87,24 +136,24 @@ export default function Review() {
       for (const action of actions) {
         if (action.screenshotPath) {
           try {
-            const b64 = await window.ipcRenderer.invoke('read-file-base64', action.screenshotPath);
-            screenshots.push(b64);
-          } catch(e) {}
+            const b64 = await window.ipcRenderer.invoke('read-file-base64', action.screenshotPath) as string | null;
+            if (b64) screenshots.push(b64);
+          } catch (error) {
+            console.error('Failed to read screenshot:', error);
+          }
         }
       }
       
-      let result = '';
-      if (defaultModel.includes('gemini')) {
-        if (!geminiApiKey) throw new Error("Missing Gemini API Key in Settings");
-        result = await generateTestCasesWithGemini(actions, screenshots, geminiApiKey, defaultModel);
-      } else {
-        if (!claudeApiKey) throw new Error("Missing Claude API Key in Settings");
-        result = await generateTestCasesWithClaude(actions, screenshots, claudeApiKey, defaultModel);
-      }
+      // SECURITY: Use new secure IPC endpoint for test case generation (main process)
+      const result = await window.ipcRenderer.invoke('generate-test-cases', {
+        actions,
+        screenshots,
+        modelName: defaultModel
+      });
       
-      setTestCases(result);
-    } catch (err: any) {
-      alert("Error generating test cases: " + err.message);
+      setTestCases(result as string);
+    } catch (err: unknown) {
+      alert("Error generating test cases: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       if (window.ipcRenderer) {
         window.ipcRenderer.send('set-generator-active', false);
@@ -120,15 +169,15 @@ export default function Review() {
     }
     setIsSavingVideo(true);
     try {
-      const result = await window.ipcRenderer.invoke('download-file', videoPath);
+      const result = await window.ipcRenderer.invoke('download-file', videoPath) as { success?: boolean; message?: string } | null;
       if (result && result.success) {
         alert('Video saved successfully!');
       } else {
         alert(result?.message || 'Failed to save video');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Save video error:', error);
-      alert(`Error saving video: ${error.message}`);
+      alert(`Error saving video: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsSavingVideo(false);
     }
@@ -154,35 +203,7 @@ export default function Review() {
     a.click();
   };
   
-  const downloadScreenshot = async (screenshotPath: string, actionLabel: string) => {
-    try {
-      if (!screenshotPath) {
-        alert('Screenshot path not available');
-        return;
-      }
-      const b64 = await window.ipcRenderer.invoke('read-file-base64', screenshotPath);
-      if (!b64) {
-        alert('Failed to read screenshot');
-        return;
-      }
-      const byteCharacters = atob(b64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/png' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `screenshot_${actionLabel.replace(/\s+/g, '_')}_${Date.now()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error('Screenshot download error:', error);
-      alert(`Error downloading screenshot: ${error.message}`);
-    }
-  };
+  
 
   const handleDiscard = () => {
     clearActions();
@@ -227,14 +248,21 @@ export default function Review() {
                <video 
                  src={videoBlobUrl}
                  controls 
+                 autoPlay
+                 playsInline
                  className="w-full h-full object-contain"
                  onError={(e) => {
                    console.error('Video playback error:', e);
-                   alert('Failed to play video. Try saving and reopening.');
+                   alert('Failed to play video. The video file may be corrupted. Try saving and reopening.');
                  }}
                />
              ) : videoPath ? (
-               <div className="w-full h-full flex items-center justify-center text-slate-500">Loading video...</div>
+               <div className="w-full h-full flex items-center justify-center">
+                 <div className="flex flex-col items-center gap-3">
+                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                   <span className="text-slate-500 text-sm">Loading video...</span>
+                 </div>
+               </div>
              ) : (
                <div className="w-full h-full flex items-center justify-center text-slate-500">No video recorded</div>
              )}
@@ -252,7 +280,7 @@ export default function Review() {
                    <div className="flex items-center gap-2">
                      {a.screenshotPath && (
                        <button
-                         onClick={() => downloadScreenshot(a.screenshotPath!, a.label)}
+                         onClick={() => downloadScreenshotFile(a.screenshotPath!, a.label)}
                          className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors text-blue-400 hover:text-blue-300"
                          title="Download screenshot"
                        >

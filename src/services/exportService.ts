@@ -32,11 +32,13 @@ export async function exportToDocx(testCasesContent: string): Promise<Blob> {
       ],
     });
 
-    const blob = await Packer.toBlob(doc);
-    return new Blob([blob], { type: MIME_TYPES.DOCX });
+    // Packer.toBlob() already returns a Blob with correct type, use it directly
+    return await Packer.toBlob(doc);
   } catch (error) {
-    throw new Error(`Failed to export to DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+      throw new Error(`Failed to export to DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+        cause: error,
+      });
+    }
 }
 
 /**

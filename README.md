@@ -1,364 +1,127 @@
-# Test Case Recorder
+﻿# TestForge
 
-An intelligent desktop application that automatically records user interactions and generates professional QA test cases using AI (Claude or Gemini). Perfect for QA teams, test automation engineers, and developers who need to streamline test documentation.
+TestForge is an intelligent Electron desktop application that records user interactions and uses AI to generate structured QA test cases. It is designed for QA teams, automation engineers, and developers who want to accelerate test documentation with minimal manual effort.
 
-## 🎯 Overview
+## 🎯 What TestForge Does
 
-**Test Case Recorder** is an Electron-based desktop application that:
-- Records all user interactions (clicks, keyboard input, scrolling, navigation, etc.)
-- Captures screenshots during test execution
-- Uses AI (Claude 3.5 Sonnet or Gemini 2.0 Flash) to analyze recorded actions
-- Generates structured, professional QA test case documentation
-- Exports test cases as Word documents (.docx)
-- Supports multiple AI model configurations for flexibility
+- Captures desktop user interactions such as clicks, keyboard events, scrolling, and navigation
+- Takes screenshots during recording for visual context
+- Sends recorded actions to AI services (Claude or Gemini)
+- Generates professional QA test cases with steps, preconditions, expected results, and metadata
+- Exports test cases as Word documents (`.docx`)
 
 ## ✨ Key Features
 
-- **🎬 Real-time Action Recording**: Captures 11 types of user interactions including clicks, keyboard input, scrolling, drag operations, and navigation
-- **📸 Automatic Screenshots**: Takes screenshots on every click action for visual documentation
-- **🤖 AI-Powered Test Generation**: Uses Claude or Gemini APIs to generate structured test cases from recorded actions
-- **📋 Professional Documentation**: Generates test cases with:
-  - Test Case IDs (TC_#)
-  - Descriptive names and module classification
-  - Preconditions
-  - Numbered atomic steps
-  - Expected results
-  - Priority levels (High/Medium/Low)
-  - Test type classification (Functional/UI/Navigation/Regression)
-- **💾 Export Capabilities**: Save test cases as Word documents (.docx) for easy sharing
-- **⚙️ Flexible Configuration**: Support for multiple AI models and API keys
-- **🔐 Privacy-First Design**: API keys stored locally in memory, no cloud persistence
+- **Real-time desktop recording** of user activities
+- **AI-powered test case generation** using Claude or Gemini
+- **Screenshot capture** to document UI steps visually
+- **Structured documentation** with test case IDs, priorities, and types
+- **Export support** for `.docx` delivery
+- **Settings management** for API keys and model selection
 
-## 📋 System Requirements
+## 📦 Supported Platforms
 
-- **Operating System**: Windows, macOS, or Linux
-- **Node.js**: v18 or higher
-- **npm**: v9 or higher
-- **AI API Keys**: Either Claude (Anthropic) or Gemini (Google) API key
+- Windows
+- macOS
+- Linux
 
-## 🚀 Installation
+## ⚙️ Prerequisites
 
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd testcase-recorder
-```
+- Node.js 18 or higher
+- npm 9 or higher
+- Claude API key or Gemini API key for AI generation
 
-### 2. Install Dependencies
+## 🚀 Getting Started
+
+### Install dependencies
+
 ```bash
 npm install
 ```
 
-### 3. Set Up Environment Variables
-Create a `.env` file in the root directory (optional for development):
-```env
-# API Configuration is done via the Settings UI
-# No environment variables required for basic operation
-```
+### Run the app in development
 
-## 📖 Usage Guide
-
-### Starting the Application
-
-**Development Mode:**
 ```bash
 npm run dev
 ```
 
-**Production Build:**
+### Build the app for production
+
 ```bash
 npm run build
 ```
 
-**Preview Production Build:**
+### Preview the production build
+
 ```bash
 npm preview
 ```
 
-### Application Workflow
+## 🧩 How to Use TestForge
 
-1. **Dashboard**: Start screen with options to begin recording
-2. **Setup**: Select the screen/window to record from
-3. **Recording**: Active recording session where interactions are captured
-4. **Review**: Review captured actions and generate test cases using AI
-5. **Settings**: Configure API keys and select AI models
+1. Open the app and go to **Settings**.
+2. Enter your Claude or Gemini API key and choose the AI model.
+3. Start a new recording session from the **Dashboard**.
+4. Perform the actions you want to capture.
+5. Stop recording and review the captured steps.
+6. Generate AI-based test cases.
+7. Export the results as a `.docx` document.
 
-### Step-by-Step: Creating a Test Case
+## 🏗 Architecture Overview
 
-1. **Configure API Keys** (first time):
-   - Go to Settings
-   - Enter your Claude API key or Gemini API key
-   - Select your preferred AI model
-   - Save settings
+TestForge uses a standard Electron app architecture with a native main process and a React renderer process.
 
-2. **Start Recording**:
-   - Click "New Recording" from Dashboard
-   - Select the screen/window to record
-   - Click "Start Recording"
-   - Perform your user actions (clicks, typing, navigation, etc.)
-   - Application automatically captures screenshots and logs actions
+- `electron/main.ts` — application entry point and window management
+- `electron/preload.ts` — secure bridge between renderer and main
+- `electron/ipcHandlers.ts` — IPC request handling
+- `electron/actionObserver.ts` — user interaction recording
+- `electron/screenshotCapture.ts` — screenshot capture logic
+- `src/` — React UI and application state
+- `src/services/` — AI integration and export generation
+- `src/store/useAppStore.ts` — shared application state
 
-3. **Stop Recording**:
-   - Click "Stop Recording" when done
-   - Review the recorded actions
+## 🤖 AI Providers
 
-4. **Generate Test Cases**:
-   - Click "Generate Test Cases"
-   - AI analyzes recorded actions and screenshots
-   - Structured test cases are generated
+### Claude (Anthropic)
+- `Claude 3.5 Sonnet` — best for high-quality reasoning and detailed output
+- `Claude 3.5 Haiku` — faster, lightweight option
+- `Claude 3 Sonnet` — balanced flexibility
 
-5. **Export Results**:
-   - Review generated test cases
-   - Click "Export" to save as Word document (.docx)
+### Gemini (Google)
+- `Gemini 2.0 Flash` — fast and cost-efficient
+- `Gemini 3 Pro` — advanced reasoning
+- `Gemini 3.1 Pro` — powerful and flexible
 
-## 🏗️ Architecture
-
-### Tech Stack
-
-- **Frontend**: React 19 + TypeScript + Tailwind CSS
-- **Desktop Framework**: Electron 42
-- **Build Tool**: Vite
-- **State Management**: Zustand
-- **UI Components**: Lucide React (icons)
-- **AI Services**: 
-  - Claude API (Anthropic)
-  - Gemini API (Google)
-- **User Input Monitoring**: uiohook-napi
-- **Screenshot Capture**: screenshot-desktop
-- **Export**: docx library for Word document generation
-
-### Project Structure
-
-```
-├── electron/                    # Electron main process
-│   ├── main.ts                 # App entry point
-│   ├── ipcHandlers.ts          # IPC communication handlers
-│   ├── actionObserver.ts       # User interaction capture
-│   ├── screenshotCapture.ts    # Screenshot functionality
-│   └── preload.ts              # Preload script for context isolation
-├── src/
-│   ├── pages/                  # React pages
-│   │   ├── Dashboard.tsx
-│   │   ├── RecordingSetup.tsx
-│   │   ├── Recording.tsx
-│   │   ├── Review.tsx
-│   │   └── Settings.tsx
-│   ├── services/               # AI services
-│   │   ├── claudeService.ts    # Claude API integration
-│   │   ├── geminiService.ts    # Gemini API integration
-│   │   └── exportService.ts    # Export functionality
-│   ├── store/
-│   │   └── useAppStore.ts      # Zustand state management
-│   ├── App.tsx                 # Main React component
-│   ├── types.ts                # TypeScript type definitions
-│   └── index.css               # Global styles
-├── public/                     # Static assets
-├── dist-electron/              # Compiled Electron code
-├── vite.config.ts              # Vite configuration
-├── tsconfig.json               # TypeScript configuration
-├── tailwind.config.js          # Tailwind CSS configuration
-└── electron-builder.config.js  # Electron Builder configuration
-```
-
-### Data Flow
-
-```
-User Actions
-    ↓
-Action Observer (electron/actionObserver.ts)
-    ↓
-Screenshot Capture (on click events)
-    ↓
-Action Storage (Zustand store)
-    ↓
-IPC Communication (to React UI)
-    ↓
-Review Page (user confirmation)
-    ↓
-AI Service (Claude/Gemini API)
-    ↓
-Test Case Generation
-    ↓
-Export Service (Word document)
-```
-
-## 🤖 AI Model Configuration
-
-### Supported Models
-
-#### Google Gemini
-- **Gemini 2.0 Flash** (Recommended): Fast, cost-effective, multimodal
-- **Gemini 3.1 Pro**: Advanced reasoning capabilities
-- **Gemini 3 Pro**: Balanced performance
-
-**Gemini Advantages:**
-- Lowest cost (~$0.01-$0.05 per session)
-- Faster processing
-- Good for high-volume testing
-
-#### Anthropic Claude
-- **Claude 3.5 Sonnet** (Recommended for quality): Superior reasoning, detailed analysis
-- **Claude 3.5 Haiku**: Fast, lightweight option
-- **Claude 3 Sonnet**: Balanced option
-
-**Claude Advantages:**
-- Higher quality test case generation
-- Better understanding of complex workflows
-- More consistent formatting
-
-### Estimated API Costs (per recording session)
-
-| Model | Input Cost | Output Cost | Estimated Total |
-|-------|-----------|-----------|-----------------|
-| Gemini 2.0 Flash | $0.001 | $0.001 | $0.01-$0.05 |
-| Claude 3.5 Sonnet | $0.003 | $0.015 | $0.05-$0.15 |
-
-## 🔧 Development
-
-### Available Scripts
+## 🧪 Available Scripts
 
 ```bash
-# Development server with HMR
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Run ESLint
-npm run lint
+npm run dev      # Start dev server
+npm run build    # Build production assets
+npm preview      # Preview production build
+npm run lint     # Run ESLint
 ```
 
-### Project Structure for Developers
+## 📁 Project Structure
 
-- **Electron Process**: Handles native system interactions (action capturing, screenshot, file I/O)
-- **Renderer Process**: React UI for user interaction and test case review
-- **IPC Communication**: Secure message passing between Electron and React
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `electron/actionObserver.ts` | Monitors and captures user interactions |
-| `electron/screenshotCapture.ts` | Handles screenshot functionality |
-| `src/services/claudeService.ts` | Claude API integration |
-| `src/services/geminiService.ts` | Gemini API integration |
-| `src/services/exportService.ts` | Export test cases to .docx |
-| `src/store/useAppStore.ts` | Global state management |
-
-## 📦 Building for Production
-
-### Create Standalone Executable
-
-```bash
-npm run build
+```
+├── electron/                    # Electron main process and native modules
+├── src/                         # React renderer application
+├── public/                      # Static assets
+├── dist-electron/               # Compiled Electron output
+├── package.json                 # Dependencies and scripts
+├── tsconfig.json                # TypeScript configuration
+├── vite.config.ts               # Vite configuration
+└── electron-builder.config.js   # Packaging configuration
 ```
 
-This will:
-1. Compile TypeScript
-2. Build React app with Vite
-3. Create Electron distribution files
-4. Generate installer (via electron-builder)
+## 📚 Documentation
 
-### Output Location
-- Windows: `dist/` (installer .exe)
-- macOS: `dist/` (DMG file)
-- Linux: `dist/` (AppImage or deb)
+- `MD_Files/TestForge_Study.md` — product study
+- `MD_Files/TestForge_Architecture.md` — architecture document
+- `MD_Files/TestForge_Detailed_Study.md` — detailed product study
 
-## 🔐 Security Considerations
+## ✅ Notes
 
-- **API Keys**: Stored in memory only, not persisted to disk
-- **Context Isolation**: Electron preload script enables context isolation
-- **Node Integration**: Disabled for renderer process
-- **IPC Security**: Limited message passing between processes
-- **Screenshots**: Temporary storage, cleared after export
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**"API Key not set" error**
-- Go to Settings
-- Enter your Claude or Gemini API key
-- Save and retry
-
-**Screenshots not captured**
-- Check system permissions for screenshot access
-- Ensure the app has screen recording permissions (macOS/Linux)
-
-**Test case generation fails**
-- Verify API key is valid and has sufficient quota
-- Check internet connection
-- Ensure model name is correct in settings
-
-**High API costs**
-- Switch to Gemini 2.0 Flash for cost efficiency
-- Reduce number of screenshots (fewer clicks = fewer screenshots)
-- Use batch processing for multiple recordings
-
-## 📝 Recorded Action Types
-
-The application captures the following interaction types:
-
-| Action | Description |
-|--------|-------------|
-| CLICK | Mouse left button press |
-| DOUBLE_CLICK | Double click action |
-| RIGHT_CLICK | Right-click (context menu) |
-| KEY_PRESS | Keyboard input |
-| SCROLL | Mouse wheel scroll |
-| DRAG | Click and drag operation |
-| WINDOW_OPEN | New window creation |
-| NAVIGATION | URL/route change |
-| INPUT | Text field entry |
-| DROPDOWN | Select element change |
-| SCREENSHOT_TRIGGER | Explicit screenshot capture |
-
-## 🤝 Contributing
-
-We welcome contributions! Please feel free to submit pull requests or open issues for bugs and feature requests.
-
-## 📄 License
-
-This project is part of the AI Test Case Generation suite. See LICENSE file for details.
-
-## 📞 Support
-
-For issues, questions, or suggestions:
-- Check the [CODEBASE_ANALYSIS.md](CODEBASE_ANALYSIS.md) for detailed technical documentation
-- Review existing issues on the repository
-- Create a new issue with detailed steps to reproduce
-
-## 🎓 Learn More
-
-- [Electron Documentation](https://www.electronjs.org/docs)
-- [React Documentation](https://react.dev)
-- [Vite Documentation](https://vitejs.dev)
-- [Claude API Documentation](https://docs.anthropic.com)
-- [Google Gemini API Documentation](https://ai.google.dev/docs)
-- [Zustand Documentation](https://github.com/pmndrs/zustand)
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- The app stores API keys locally and only uses them for AI generation.
+- Recorded actions are forwarded to AI for automated test case creation.
+- Exported `.docx` files are intended for QA review, reporting, or sharing.
