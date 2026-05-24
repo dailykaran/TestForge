@@ -55,8 +55,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
       {/* Basic Titlebar Drag Area */}
-      <div className="h-8 w-full bg-slate-800 shrink-0 select-none flex items-center px-4" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-        <span className="text-xs font-semibold text-slate-300">TestForge</span>
+      <div className="h-10 w-full bg-slate-900 shrink-0 select-none flex items-center gap-2 px-4" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+        <img src="/icons/icon.svg" alt="TestForge logo" className="h-5 w-5" />
+        <span className="text-sm font-semibold text-slate-100 tracking-tight leading-none">TestForge</span>
       </div>
       
       {/* Main Content Area */}

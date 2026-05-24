@@ -8,13 +8,15 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col items-center justify-center p-8 min-h-full h-full bg-slate-900">
       <div className="text-center mb-16 animate-fade-in-down">
-        <div className="w-24 h-24 bg-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-[0_0_40px_rgba(37,99,235,0.4)]">
-          <Video className="w-12 h-12 text-white" />
+        <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-[2rem] bg-slate-800/80 border border-slate-700 shadow-[0_0_40px_rgba(37,99,235,0.35)]">
+          <img src="/icons/icon.svg" alt="TestForge logo" className="h-12 w-12" />
         </div>
-        <h1 className="text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300">
+        <h1 className="text-5xl font-extrabold tracking-tight text-slate-100">
           TestForge
         </h1>
-        <p className="text-slate-400 mt-5 text-lg font-light">Intelligent test case generation through visual actions</p>
+        <p className="text-slate-400 mt-5 max-w-xl mx-auto text-lg font-medium leading-relaxed">
+          Intelligent test case generation through visual actions and polished automation workflows.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">

@@ -617,30 +617,16 @@ function setupIpcHandlers(win) {
 //#endregion
 //#region electron/iconHelper.ts
 function getAppIcon() {
-	const iconsDir = path.join(process.cwd(), "public", "icons");
-	const pngPath = path.join(iconsDir, "icon-256x256.png");
-	if (fs.existsSync(pngPath)) {
-		console.log("Using existing PNG icon:", pngPath);
-		return nativeImage.createFromPath(pngPath);
-	}
 	const dataUrl = `data:image/svg+xml;base64,${Buffer.from(`
     <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
-          <stop offset="100%" style="stop-color:#1D4ED8;stop-opacity:1" />
+          <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
         </linearGradient>
       </defs>
       <rect width="200" height="200" rx="50" fill="url(#bgGradient)"/>
-      <g>
-        <rect x="45" y="65" width="110" height="80" rx="12" fill="#FFFFFF" opacity="0.95"/>
-        <circle cx="85" cy="105" r="26" fill="none" stroke="#FFFFFF" stroke-width="3"/>
-        <circle cx="85" cy="105" r="20" fill="none" stroke="#FFFFFF" stroke-width="2"/>
-        <circle cx="85" cy="105" r="14" fill="#3B82F6" opacity="0.3"/>
-        <circle cx="85" cy="105" r="8" fill="#FFFFFF"/>
-        <rect x="130" y="75" width="20" height="60" rx="10" fill="#FFFFFF" opacity="0.9" stroke="#3B82F6" stroke-width="2"/>
-        <circle cx="155" cy="60" r="7" fill="#EF4444"/>
-      </g>
+      <text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="80" font-weight="800" letter-spacing="-4" fill="#FFFFFF">TF</text>
     </svg>
   `).toString("base64")}`;
 	try {
@@ -714,7 +700,7 @@ function createWindow() {
 		console.error("Failed to create window - win is null");
 		return;
 	}
-	win.setTitle("TestForge");
+	win.setTitle("TF");
 	try {
 		win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
 			callback({ responseHeaders: {

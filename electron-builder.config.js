@@ -1,6 +1,6 @@
 module.exports = {
   appId: 'com.testforge.app',
-  productName: 'TestForge',
+  productName: 'TF',
   directories: { output: 'dist-electron' },
   win: { target: 'nsis', icon: 'public/icons/icon.ico' },
   mac: { target: 'dmg', icon: 'public/icons/icon.icns' },

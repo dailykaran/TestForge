@@ -94,7 +94,7 @@ function createWindow() {
     return;
   }
 
-  win.setTitle('TestForge');
+  win.setTitle('TF');
 
   // SECURITY: Set Content Security Policy headers
   try {

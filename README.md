@@ -123,5 +123,6 @@ npm run lint     # Run ESLint
 ## ✅ Notes
 
 - The app stores API keys locally and only uses them for AI generation.
+- API keys are saved in the operating system keychain and are never exposed directly to the renderer.
 - Recorded actions are forwarded to AI for automated test case creation.
 - Exported `.docx` files are intended for QA review, reporting, or sharing.

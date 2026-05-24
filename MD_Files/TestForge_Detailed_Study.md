@@ -183,6 +183,30 @@ TestForge uses a split architecture common to Electron apps:
 - `.docx` export may not preserve advanced formatting in all use cases
 - Requires valid API keys for AI generation
 
-## 12. Summary
+## 12. Security Information
+
+- **API keys are stored securely** in the operating system keychain using `keytar`.
+  - Windows: Credential Manager
+  - macOS: Keychain
+  - Linux: Secret Service
+- **The renderer process does not receive raw API keys.** The app only returns boolean status for whether a key exists, and all key access is handled in the main process.
+- **IPC is restricted with an allowlist** in `electron/preload.ts`.
+  - Only explicitly permitted channels can be invoked or listened to from the renderer.
+  - Unauthorized channels are blocked and logged.
+- **File operations are validated before execution.** The app uses `electron/pathValidator.ts` to:
+  - normalize and resolve file paths
+  - enforce that read/write operations remain inside the app's safe temp directory
+  - prevent directory traversal and unauthorized access
+- **Temporary recording data is sandboxed.** Screenshots, videos, and exported session artifacts are stored in `app.getPath('temp')/testforge` and are only accessible through validated app flows.
+- **AI generation occurs in the main process.** Recorded action data and screenshots are forwarded securely through provider SDKs from the main process, reducing risk exposure in the renderer.
+- **Session data is transient.** In-browser `sessionStorage` is used only for session timing and does not persist test case or action data beyond the active app session.
+- **User control for sensitive data.** Users can clear stored API keys at any time, and the app is designed to keep sensitive configuration local rather than synced to external storage.
+- **Recommended security practices**
+  - Keep the OS and Electron environment patched
+  - Do not share exported `.docx` files containing sensitive information unless necessary
+  - Clear API keys when the app is no longer in use
+  - Use the app on trusted machines only
+
+## 13. Summary
 
 TestForge is a comprehensive desktop QA tooling solution that tightly integrates native recording, screenshot capture, and AI-driven test generation. Its architecture separates native capture from UI logic, enabling stable recording workflows and extensible AI/export pipelines.
