@@ -1,7 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
-import { ActionEvent } from '../src/types';
-import { getGeminiApiKey } from './keyStore';
-
 const SYSTEM_PROMPT = `
 You are a professional QA Engineer and Test Architect specializing in UI/UX testing and test automation.
 
@@ -66,22 +62,15 @@ Test Steps:
 
 Format each step:
 Step N: [Action] [UI_ELEMENT_TEXT] [Details]
+Expected: [What should appear/change with EXACT text/values]
+Visual Check: [What the tester should see on screen]
 
 Example:
 Step 1: Click on "Login" button in the top-right corner
+Expected: Login modal window appears with "Sign in to Your Account" heading
+Visual Check: Modal contains "Email" field and "Password" field with "Sign in" and "Cancel" buttons
 
-Expected each step:
-  - Clear action description with EXACT UI text
-  - Specific expected result with EXACT text/values
-  - Visual verification point describing what should be visible on screen
-
-Visual Checks must include:
-- EXACT text of any messages, labels, or UI elements
-- Description of expected UI state (e.g., "Login form appears with fields: 'Username', 'Password'")
-- Confirmation of any changes in element states (e.g., "Submit button becomes enabled")
-
-
-Expected summary at end of test case:
+Expected Results:
 - [Clear, verifiable outcome with EXACT UI TEXT/values]
 - [Final state of application after all steps]
 - [Any confirmation messages or status indicators visible]
@@ -157,145 +146,4 @@ IMPORTANT NOTES
 - BE ACTIONABLE: Someone with basic app knowledge can execute these steps
 `;
 
-/**
- * Formats action events into a readable text log
- */
-function formatActionsToText(actions: ActionEvent[]): string {
-  return actions
-    .map(a => 
-      `[${new Date(a.timestamp).toISOString()}] [${a.type.toUpperCase()}] — ${a.label} | Coords: ${
-        a.coordinates ? `${a.coordinates.x},${a.coordinates.y}` : 'N/A'
-      }`
-    )
-    .join('\n');
-}
-
-/**
- * Logs Gemini API interactions (input/output) for debugging and auditing
- */
-function logGeminiInteraction(
-  type: 'input' | 'output',
-  data: {
-    model?: string;
-    actionsCount?: number;
-    screenshotsCount?: number;
-    prompt?: string;
-    response?: string;
-    timestamp?: string;
-    error?: string;
-  }
-): void {
-  const timestamp = new Date().toISOString();
-  const logEntry = {
-    timestamp,
-    interactionType: type,
-    ...data,
-  };
-
-  console.log('\n' + '='.repeat(80));
-  console.log(`GEMINI API ${type.toUpperCase()} [${timestamp}]`);
-  console.log('='.repeat(80));
-  console.log(JSON.stringify(logEntry, null, 2));
-  console.log('='.repeat(80) + '\n');
-}
-
-/**
- * Generates test cases using Google's Gemini API (called from main process)
- * @param actions - Array of recorded user actions
- * @param screenshots - Array of base64-encoded screenshot strings
- * @param modelName - Model to use (default: gemini-2.5-flash)
- * @returns Promise resolving to generated test cases as string
- */
-export async function generateTestCasesWithGemini(
-  actions: ActionEvent[],
-  screenshots: string[],
-  modelName: string = 'gemini-2.5-flash'
-): Promise<string> {
-  try {
-    // Get API key securely from OS keychain
-    const apiKey = await getGeminiApiKey();
-    if (!apiKey?.trim()) {
-      throw new Error('Gemini API key not found. Please configure it in Settings.');
-    }
-
-    if (actions.length === 0) {
-      throw new Error('No actions provided for test case generation');
-    }
-
-    const genAI = new GoogleGenAI({ apiKey });
-
-    const actionLog = formatActionsToText(actions);
-    const prompt = `${SYSTEM_PROMPT}\n\nACTION LOG FROM RECORDING:\n${actionLog}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Include visual verification points to confirm expected UI states\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
-
-    // Build content parts array
-    const contentParts: { text?: string; inlineData?: { data: string; mimeType: string } }[] = [
-      {
-        text: prompt,
-      },
-    ];
-
-    // Add screenshots if provided
-    const validScreenshots = screenshots.filter(b64 => b64?.trim());
-    if (validScreenshots.length > 0) {
-      validScreenshots.forEach((b64) => {
-        contentParts.push({
-          inlineData: {
-            data: b64,
-            mimeType: 'image/png',
-          },
-        });
-      });
-    }
-
-    // Log the prompt input
-    logGeminiInteraction('input', {
-      model: modelName,
-      actionsCount: actions.length,
-      screenshotsCount: validScreenshots.length,
-      prompt: prompt.substring(0, 500) + (prompt.length > 500 ? '...(truncated)' : ''),
-    });
-
-    const result = await genAI.models.generateContent({
-      model: modelName,
-      contents: [
-        {
-          parts: contentParts,
-        },
-      ],
-    });
-
-    if (!result || !result.candidates || result.candidates.length === 0) {
-      throw new Error('No response received from Gemini API');
-    }
-
-    const candidate = result.candidates[0];
-    if (!candidate?.content?.parts || candidate.content.parts.length === 0) {
-      throw new Error('Empty response received from Gemini API');
-    }
-
-    const text = candidate.content.parts[0].text;
-    if (!text?.trim()) {
-      throw new Error('Empty response received from Gemini API');
-    }
-
-    // Log the API response output
-    logGeminiInteraction('output', {
-      model: modelName,
-      response: text.substring(0, 500) + (text.length > 500 ? '...(truncated)' : ''),
-    });
-
-    return text;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    
-    // Log the error
-    logGeminiInteraction('output', {
-      error: errorMessage,
-    });
-
-    if (error instanceof Error) {
-      throw new Error(`Failed to generate test cases with Gemini: ${error.message}`, { cause: error });
-    }
-    throw new Error('Failed to generate test cases with Gemini: Unknown error occurred', { cause: error });
-  }
-}
+export default SYSTEM_PROMPT;
