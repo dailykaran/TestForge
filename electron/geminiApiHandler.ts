@@ -70,10 +70,11 @@ Step N: [Action] [UI_ELEMENT_TEXT] [Details]
 Example:
 Step 1: Click on "Login" button in the top-right corner
 
-Expected each step:
-  - Clear action description with EXACT UI text
-  - Specific expected result with EXACT text/values
-  - Visual verification point describing what should be visible on screen
+Expected Check must include:
+- EXACT text of any messages, labels, or UI elements
+- Description of expected UI state (e.g., "Login form appears with fields: 'Username', 'Password'")
+- Confirmation of any changes in element states (e.g., "Submit button becomes enabled")
+
 
 Visual Checks must include:
 - EXACT text of any messages, labels, or UI elements

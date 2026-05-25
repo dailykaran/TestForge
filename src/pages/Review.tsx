@@ -34,12 +34,46 @@ async function downloadScreenshotFile(screenshotPath: string, actionLabel: strin
   }
 }
 
+async function loadScreenshotForPreview(screenshotPath: string, setImageUrl: (url: string | null) => void, setLoading: (loading: boolean) => void) {
+  setLoading(true);
+  try {
+    if (!screenshotPath) {
+      alert('Screenshot path not available');
+      setLoading(false);
+      return;
+    }
+    const b64 = (await window.ipcRenderer.invoke('read-file-base64', screenshotPath)) as string | null;
+    if (!b64) {
+      alert('Failed to read screenshot');
+      setLoading(false);
+      return;
+    }
+    const byteCharacters = atob(b64 as string);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    setImageUrl(url);
+  } catch (error: unknown) {
+    console.error('Screenshot preview error:', error);
+    alert(`Error loading screenshot: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
 export default function Review() {
   const { actions, videoPath, defaultModel, setRoute, clearActions, setVideoPath } = useAppStore();
   const [testCases, setTestCases] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingVideo, setIsSavingVideo] = useState(false);
   const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+  const [screenshotImageUrl, setScreenshotImageUrl] = useState<string | null>(null);
+  const [isLoadingScreenshot, setIsLoadingScreenshot] = useState(false);
   
   // Load video file and create blob URL for reliable playback
   useEffect(() => {
@@ -272,15 +306,32 @@ export default function Review() {
              <h3 className="text-lg font-semibold mb-4 text-slate-200 shrink-0">Captured Actions ({actions.length})</h3>
              <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                {actions.map(a => (
-                 <div key={a.id} className="text-sm p-4 bg-slate-900/50 rounded-xl border border-slate-700/50 flex justify-between items-center group hover:border-slate-600 transition-colors">
+                 <div 
+                   key={a.id} 
+                   className={`text-sm p-4 rounded-xl border flex justify-between items-center group hover:border-slate-600 transition-colors cursor-pointer ${
+                     selectedActionId === a.id 
+                       ? 'bg-blue-900/30 border-blue-600' 
+                       : 'bg-slate-900/50 border-slate-700/50'
+                   }`}
+                   onClick={() => {
+                     if (a.screenshotPath) {
+                       setSelectedActionId(a.id);
+                       setScreenshotImageUrl(null);
+                       loadScreenshotForPreview(a.screenshotPath, setScreenshotImageUrl, setIsLoadingScreenshot);
+                     }
+                   }}
+                 >
                    <div className="flex flex-col flex-1">
                      <span className="text-slate-300 font-medium">{a.label}</span>
-                     {a.screenshotPath && <span className="text-[10px] text-blue-400 mt-1">Has Screenshot</span>}
+                     {a.screenshotPath && <span className="text-[10px] text-blue-400 mt-1">📸 Has Screenshot (Click to view)</span>}
                    </div>
                    <div className="flex items-center gap-2">
                      {a.screenshotPath && (
                        <button
-                         onClick={() => downloadScreenshotFile(a.screenshotPath!, a.label)}
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           downloadScreenshotFile(a.screenshotPath!, a.label);
+                         }}
                          className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors text-blue-400 hover:text-blue-300"
                          title="Download screenshot"
                        >
@@ -338,6 +389,84 @@ export default function Review() {
         </div>
 
       </div>
+
+      {/* Screenshot Preview Modal */}
+      {selectedActionId && screenshotImageUrl && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-700 flex items-center justify-between shrink-0 bg-slate-800/50">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-100">
+                  Screenshot Preview
+                </h3>
+                <p className="text-sm text-slate-400 mt-1">
+                  Action: {actions.find(a => a.id === selectedActionId)?.label}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedActionId(null);
+                  setScreenshotImageUrl(null);
+                }}
+                className="text-slate-400 hover:text-slate-200 transition-colors p-2"
+                title="Close"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 flex items-center justify-center overflow-auto bg-slate-950 p-6">
+              {isLoadingScreenshot ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="text-slate-500 text-sm">Loading screenshot...</span>
+                </div>
+              ) : screenshotImageUrl ? (
+                <img 
+                  src={screenshotImageUrl} 
+                  alt="Screenshot preview" 
+                  className="max-w-full max-h-full object-contain"
+                  onError={() => {
+                    console.error('Image load error');
+                    alert('Failed to display screenshot');
+                  }}
+                />
+              ) : (
+                <span className="text-slate-500">Screenshot not available</span>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-700 flex gap-3 justify-end shrink-0 bg-slate-800/50">
+              <button
+                onClick={() => {
+                  setSelectedActionId(null);
+                  setScreenshotImageUrl(null);
+                }}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors font-medium"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const action = actions.find(a => a.id === selectedActionId);
+                  if (action?.screenshotPath) {
+                    downloadScreenshotFile(action.screenshotPath, action.label);
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-medium"
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
