@@ -74,6 +74,7 @@ export default function Review() {
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [screenshotImageUrl, setScreenshotImageUrl] = useState<string | null>(null);
   const [isLoadingScreenshot, setIsLoadingScreenshot] = useState(false);
+  const [promptMode, setPromptMode] = useState<'detailed' | 'simple'>('detailed');
   
   // Load video file and create blob URL for reliable playback
   useEffect(() => {
@@ -182,7 +183,8 @@ export default function Review() {
       const result = await window.ipcRenderer.invoke('generate-test-cases', {
         actions,
         screenshots,
-        modelName: defaultModel
+        modelName: defaultModel,
+        promptMode: promptMode
       });
       
       setTestCases(result as string);
@@ -254,7 +256,7 @@ export default function Review() {
           </button>
           <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-100 to-slate-400">Review Session</h1>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
            <button 
             onClick={downloadVideo}
             disabled={!videoPath || isSavingVideo}
@@ -263,6 +265,24 @@ export default function Review() {
             <PlayCircle className="w-5 h-5" />
             {isSavingVideo ? 'Saving...' : 'Save Video'}
           </button>
+          
+          {/* Prompt Selection Dropdown */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-xl border border-slate-700 hover:border-slate-600 transition-colors">
+            <label htmlFor="prompt-select" className="text-slate-300 text-sm font-medium shrink-0">
+              Prompt:
+            </label>
+            <select
+              id="prompt-select"
+              value={promptMode}
+              onChange={(e) => setPromptMode(e.target.value as 'detailed' | 'simple')}
+              disabled={isGenerating}
+              className="bg-slate-800 text-slate-200 text-sm rounded-lg px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <option value="detailed">Detailed (Comprehensive)</option>
+              <option value="simple">Simple (Lightweight)</option>
+            </select>
+          </div>
+          
           <button 
             onClick={handleGenerate}
             disabled={isGenerating || actions.length === 0}

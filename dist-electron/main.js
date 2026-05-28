@@ -270,8 +270,19 @@ async function clearAllApiKeys() {
 	await Promise.all([deleteGeminiApiKey(), deleteClaudeApiKey()]);
 }
 //#endregion
-//#region electron/geminiApiHandler.ts
-var SYSTEM_PROMPT$1 = `
+//#region src/config/prompts/gemini/detailed.ts
+/**
+* Detailed Gemini Prompt - Comprehensive test case generation with extensive guidance
+* Used in electron/geminiApiHandler.ts for main test case generation
+* 
+* Features:
+* - 15KB comprehensive prompt with detailed examples
+* - 20+ action type examples
+* - State transitions and validation handling
+* - Error recovery documentation
+* - Precision-focused for complex workflows
+*/
+var GEMINI_DETAILED_PROMPT = `
 You are a professional QA Engineer and Test Architect specializing in UI/UX testing and test automation.
 
 ═══════════════════════════════════════════════════════════════
@@ -579,6 +590,74 @@ IMPORTANT NOTES
 - BE READABLE: Format for manual test execution (not automation code)
 - BE ACTIONABLE: Someone with basic app knowledge can execute these steps
 `;
+//#endregion
+//#region src/config/prompts/gemini/simple.ts
+/**
+* Simple Gemini Prompt - Lightweight test case generation focused on UI text extraction
+* Used in src/services/geminiService.ts for browser-based test case generation
+* 
+* Features:
+* - 2.5KB lightweight prompt
+* - UI text emphasis without extensive examples
+* - Single test case requirement clearly stated
+* - Suitable for browser/renderer process
+*/
+var GEMINI_SIMPLE_PROMPT = `
+You are a professional QA Engineer and Test Architect specializing in UI/UX testing.
+
+CRITICAL REQUIREMENT: Generate ONLY ONE consolidated test case per video session. Do NOT generate multiple test cases.
+
+Your task: Analyze user interactions and screenshots to create a single, comprehensive test case that covers the complete user workflow.
+
+EMPHASIS ON UI TEXT:
+- Extract and include EXACT UI element text from screenshots (button labels, field names, menu items, error messages, etc.)
+- When referencing UI elements in test steps, include the exact text visible on the element
+- Format: "Click on [EXACT_UI_TEXT]" or "Verify [EXACT_UI_TEXT] is displayed"
+- Identify all input fields, buttons, dropdowns, links, and their labels
+- Include any validation messages, error messages, or confirmation texts
+
+Test Case Format:
+- Test Case ID: TC_001
+- Test Case Name: [Single, comprehensive workflow name]
+- Module / Feature: [Main feature being tested]
+- Preconditions: [Initial state required]
+- Test Steps: [Numbered, atomic steps with EXACT UI TEXT]
+- Expected Results: [Clear, verifiable outcomes with UI TEXT verification]
+- Priority: [High / Medium / Low]
+- Test Type: [Functional / UI / Integration / Workflow]
+
+IMPORTANT: 
+- Each step must reference actual UI text from the application
+- Include visual verification points (what should be visible after each action)
+- Test the complete end-to-end workflow as ONE unified test case
+`;
+//#endregion
+//#region src/config/prompts/claude/standard.ts
+/**
+* Claude Standard Prompt - Consistent test case generation instructions
+* Used in both electron/claudeApiHandler.ts and src/services/claudeService.ts
+* 
+* Features:
+* - Lightweight, consistent prompt (~280 chars)
+* - Same prompt for both electron and browser implementations
+* - Focuses on structured test case format
+*/
+var CLAUDE_STANDARD_PROMPT = `
+You are a professional QA Engineer and Test Architect.
+Your task is to analyze a sequence of user interactions recorded from a screen recording session and generate formal, structured software test cases.
+
+Each test case must follow this structure:
+- Test Case ID: TC_[number]
+- Test Case Name: [Descriptive Name]
+- Module / Feature: [Inferred from actions]
+- Preconditions: [What must be true before the test]
+- Test Steps: [Numbered, atomic steps]
+- Expected Results: [Clear, verifiable outcomes]
+- Priority: [High / Medium / Low]
+- Test Type: [Functional / UI / Navigation / Regression]
+`;
+//#endregion
+//#region electron/geminiApiHandler.ts
 /**
 * Formats action events into a readable text log
 */
@@ -606,15 +685,17 @@ function logGeminiInteraction(type, data) {
 * @param actions - Array of recorded user actions
 * @param screenshots - Array of base64-encoded screenshot strings
 * @param modelName - Model to use (default: gemini-2.5-flash)
+* @param promptMode - Prompt variant to use: 'detailed' for comprehensive, 'simple' for lightweight (default: 'detailed')
 * @returns Promise resolving to generated test cases as string
 */
-async function generateTestCasesWithGemini(actions, screenshots, modelName = "gemini-2.5-flash") {
+async function generateTestCasesWithGemini(actions, screenshots, modelName = "gemini-2.5-flash", promptMode = "detailed") {
 	try {
 		const apiKey = await getGeminiApiKey();
 		if (!apiKey?.trim()) throw new Error("Gemini API key not found. Please configure it in Settings.");
 		if (actions.length === 0) throw new Error("No actions provided for test case generation");
+		const selectedPrompt = promptMode === "simple" ? GEMINI_SIMPLE_PROMPT : GEMINI_DETAILED_PROMPT;
 		const genAI = new GoogleGenAI({ apiKey });
-		const prompt = `${SYSTEM_PROMPT$1}\n\nACTION LOG FROM RECORDING:\n${formatActionsToText$1(actions)}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Do NOT include per-step 'Expected' or 'Visual Check' lines; provide a concise Expected summary at the end of the test case instead\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
+		const prompt = `${selectedPrompt}\n\nACTION LOG FROM RECORDING:\n${formatActionsToText$1(actions)}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Do NOT include per-step 'Expected' or 'Visual Check' lines; provide a concise Expected summary at the end of the test case instead\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
 		const contentParts = [{ text: prompt }];
 		const validScreenshots = screenshots.filter((b64) => b64?.trim());
 		if (validScreenshots.length > 0) validScreenshots.forEach((b64) => {
@@ -651,20 +732,7 @@ async function generateTestCasesWithGemini(actions, screenshots, modelName = "ge
 }
 //#endregion
 //#region electron/claudeApiHandler.ts
-var SYSTEM_PROMPT = `
-You are a professional QA Engineer and Test Architect.
-Your task is to analyze a sequence of user interactions recorded from a screen recording session and generate formal, structured software test cases.
-
-Each test case must follow this structure:
-- Test Case ID: TC_[number]
-- Test Case Name: [Descriptive Name]
-- Module / Feature: [Inferred from actions]
-- Preconditions: [What must be true before the test]
-- Test Steps: [Numbered, atomic steps]
-- Expected Results: [Clear, verifiable outcomes]
-- Priority: [High / Medium / Low]
-- Test Type: [Functional / UI / Navigation / Regression]
-`;
+var SYSTEM_PROMPT = CLAUDE_STANDARD_PROMPT;
 var MAX_TOKENS = 4096;
 /**
 * Formats action events into a readable text log
@@ -891,9 +959,9 @@ function setupIpcHandlers(win) {
 		}
 	});
 	ipcMain.handle(IPC_CHANNELS["generate-test-cases"], async (_, actionData) => {
-		const { actions, screenshots, modelName } = actionData;
+		const { actions, screenshots, modelName, promptMode = "detailed" } = actionData;
 		try {
-			if (modelName && modelName.includes("gemini")) return await generateTestCasesWithGemini(actions, screenshots, modelName);
+			if (modelName && modelName.includes("gemini")) return await generateTestCasesWithGemini(actions, screenshots, modelName, promptMode);
 			else return await generateTestCasesWithClaude(actions, screenshots, modelName);
 		} catch (error) {
 			console.error("Error generating test cases:", error);

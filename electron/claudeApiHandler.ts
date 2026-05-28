@@ -1,21 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ActionEvent } from '../src/types';
 import { getClaudeApiKey } from './keyStore';
+import { claude } from '../src/config/prompts';
 
-const SYSTEM_PROMPT = `
-You are a professional QA Engineer and Test Architect.
-Your task is to analyze a sequence of user interactions recorded from a screen recording session and generate formal, structured software test cases.
-
-Each test case must follow this structure:
-- Test Case ID: TC_[number]
-- Test Case Name: [Descriptive Name]
-- Module / Feature: [Inferred from actions]
-- Preconditions: [What must be true before the test]
-- Test Steps: [Numbered, atomic steps]
-- Expected Results: [Clear, verifiable outcomes]
-- Priority: [High / Medium / Low]
-- Test Type: [Functional / UI / Navigation / Regression]
-`;
+// SYSTEM_PROMPT is now imported from src/config/prompts/claude/standard.ts
+const SYSTEM_PROMPT = claude.CLAUDE_STANDARD_PROMPT;
 
 const MAX_TOKENS = 4096;
 

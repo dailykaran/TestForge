@@ -199,11 +199,11 @@ export function setupIpcHandlers(win: BrowserWindow) {
 
   // SECURITY: Test case generation moved to main process (away from browser context)
   ipcMain.handle(IPC_CHANNELS['generate-test-cases'], async (_, actionData: unknown) => {
-    const data = actionData as { actions: unknown; screenshots: unknown; modelName: string };
-    const { actions, screenshots, modelName } = data;
+    const data = actionData as { actions: unknown; screenshots: unknown; modelName: string; promptMode?: 'detailed' | 'simple' };
+    const { actions, screenshots, modelName, promptMode = 'detailed' } = data;
     try {
       if (modelName && modelName.includes('gemini')) {
-        return await generateTestCasesWithGemini(actions as never, screenshots as never, modelName);
+        return await generateTestCasesWithGemini(actions as never, screenshots as never, modelName, promptMode);
       } else {
         return await generateTestCasesWithClaude(actions as never, screenshots as never, modelName);
       }
