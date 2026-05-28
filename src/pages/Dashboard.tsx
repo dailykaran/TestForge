@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Video, Settings2, Play } from 'lucide-react';
+import { Settings2, Play } from 'lucide-react';
 
 export default function Dashboard() {
   const { setRoute } = useAppStore();

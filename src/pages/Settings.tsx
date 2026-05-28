@@ -247,6 +247,8 @@ export default function Settings() {
               >
                 <optgroup label="Google - Verified Working">
                   <option value="gemini-2.5-flash">Gemini 2.5 Flash ⭐ (Recommended)</option>
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                  <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
                   <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
                   <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
                 </optgroup>
