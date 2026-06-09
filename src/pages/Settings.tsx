@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { ArrowLeft, Save, ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
-import { isValidApiKeyFormat } from '../utils/validation';
+import { ArrowLeft, Save, ShieldCheck, AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { isValidApiKeyFormat, validateGeminiApiKeyAtRuntime } from '../utils/validation';
 
 export default function Settings() {
   const { defaultModel, setDefaultModel, setRoute } = useAppStore();
@@ -10,6 +10,8 @@ export default function Settings() {
   const [claudeKeyInput, setClaudeKeyInput] = useState('');
   const [modelInput, setModelInput] = useState(defaultModel);
   const [isSaving, setIsSaving] = useState(false);
+  const [isValidatingGeminiKey, setIsValidatingGeminiKey] = useState(false);
+  const [geminiValidationError, setGeminiValidationError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [geminiKeyExists, setGeminiKeyExists] = useState(false);
   const [claudeKeyExists, setClaudeKeyExists] = useState(false);
@@ -58,13 +60,28 @@ export default function Settings() {
   const handleSave = async () => {
     setIsSaving(true);
     setSaveStatus(null);
+    setGeminiValidationError(null);
 
     try {
-      // Validate API key formats if provided
-      if (geminiKeyInput.trim() && !isValidApiKeyFormat(geminiKeyInput, 'gemini')) {
-        throw new Error('Invalid Gemini API key format. Should start with "AIza"');
+      // Validate Gemini key at runtime if provided
+      if (geminiKeyInput.trim()) {
+        // Basic format check first
+        if (!isValidApiKeyFormat(geminiKeyInput, 'gemini')) {
+          throw new Error('Gemini API key is too short (minimum 20 characters)');
+        }
+
+        // Runtime validation - test the key with the Gemini API
+        setIsValidatingGeminiKey(true);
+        const validationResult = await validateGeminiApiKeyAtRuntime(geminiKeyInput);
+        setIsValidatingGeminiKey(false);
+
+        if (!validationResult.valid) {
+          setGeminiValidationError(validationResult.error || 'Failed to validate API key');
+          throw new Error(validationResult.error || 'Failed to validate Gemini API key');
+        }
       }
 
+      // Validate Claude key format if provided
       if (claudeKeyInput.trim() && !isValidApiKeyFormat(claudeKeyInput, 'claude')) {
         throw new Error('Invalid Claude API key format. Should start with "sk-ant-"');
       }
@@ -107,6 +124,7 @@ export default function Settings() {
       });
     } finally {
       setIsSaving(false);
+      setIsValidatingGeminiKey(false);
     }
   };
 
@@ -143,11 +161,20 @@ export default function Settings() {
         </div>
         <button
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || isValidatingGeminiKey}
           className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20"
         >
-          <Save className="w-5 h-5" />
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          {isValidatingGeminiKey ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" />
+              Validating...
+            </>
+          ) : (
+            <>
+              <Save className="w-5 h-5" />
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </>
+          )}
         </button>
       </header>
 
@@ -188,15 +215,32 @@ export default function Settings() {
                   </span>
                 )}
               </div>
-              <input
-                type="password"
-                value={geminiKeyInput}
-                onChange={(e) => setGeminiKeyInput(e.target.value)}
-                placeholder={geminiKeyExists ? "Leave blank to keep current key" : "AIzaSy..."}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-              />
+              <div className="relative">
+                <input
+                  type="password"
+                  value={geminiKeyInput}
+                  onChange={(e) => {
+                    setGeminiKeyInput(e.target.value);
+                    setGeminiValidationError(null);
+                  }}
+                  placeholder={geminiKeyExists ? "Leave blank to keep current key" : "Paste your Google API key"}
+                  disabled={isValidatingGeminiKey}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all disabled:opacity-50"
+                />
+                {isValidatingGeminiKey && (
+                  <div className="absolute right-3 top-3">
+                    <Loader className="w-5 h-5 text-blue-400 animate-spin" />
+                  </div>
+                )}
+              </div>
+              {geminiValidationError && (
+                <p className="text-xs text-red-400 mt-2 flex items-start gap-1">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  {geminiValidationError}
+                </p>
+              )}
               <p className="text-xs text-slate-500 mt-2">
-                Enter new key to update. Keys are securely stored in your OS keychain, never in the app.
+                Any Google API key format is accepted. Keys are validated when you click Save and securely stored in your OS keychain.
               </p>
             </div>
 

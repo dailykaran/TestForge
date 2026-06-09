@@ -1,9 +1,13 @@
+import { GoogleGenAI } from '@google/genai';
+
 /**
  * Input validation utilities for client-side validation
  */
 
 /**
  * Validates an API key format (basic check)
+ * For Gemini: Now does basic validation only; full validation happens at runtime
+ * For Claude: Validates "sk-ant-" prefix format
  * @param key - The API key to validate
  * @param type - Type of API key ('gemini' or 'claude')
  * @returns true if valid format, false otherwise
@@ -16,14 +20,81 @@ export function isValidApiKeyFormat(key: string, type: 'gemini' | 'claude'): boo
   const trimmed = key.trim();
   
   if (type === 'gemini') {
-    // Gemini keys typically start with 'AIza'
-    return trimmed.length > 20 && trimmed.startsWith('AIza');
+    // Basic validation for Gemini - just check minimum length
+    // Full validation happens at runtime when saving
+    return trimmed.length > 20;
   } else if (type === 'claude') {
-    // Claude keys typically start with 'sk-ant-'
+    // Claude keys should start with 'sk-ant-'
     return trimmed.length > 20 && trimmed.startsWith('sk-ant-');
   }
 
   return false;
+}
+
+/**
+ * Validates a Gemini API key by making a test request to the API
+ * This ensures the key actually works with the Gemini API
+ * @param apiKey - The Google API key to validate
+ * @returns Promise with { valid: boolean; error?: string }
+ */
+export async function validateGeminiApiKeyAtRuntime(
+  apiKey: string
+): Promise<{ valid: boolean; error?: string }> {
+  if (!apiKey?.trim()) {
+    return { valid: false, error: 'API key cannot be empty' };
+  }
+
+  if (apiKey.trim().length < 20) {
+    return { valid: false, error: 'API key is too short' };
+  }
+
+  try {
+    // Initialize Gemini API with the provided key
+    const genAI = new GoogleGenAI({ apiKey: apiKey.trim() });
+
+    // Make a minimal test request (just 1 token, negligible cost)
+    await genAI.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: [
+        {
+          parts: [{ text: 'test' }],
+        },
+      ],
+    });
+
+    return { valid: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Map common API errors to user-friendly messages
+    if (errorMessage.includes('API key not valid')) {
+      return { valid: false, error: 'Invalid API key. Please check and try again.' };
+    }
+    if (errorMessage.includes('API_KEY_INVALID')) {
+      return { valid: false, error: 'Invalid API key format or credentials.' };
+    }
+    if (errorMessage.includes('permission denied') || errorMessage.includes('not enabled')) {
+      return {
+        valid: false,
+        error: 'Gemini API is not enabled for this project. Enable it in Google Cloud Console.'
+      };
+    }
+    if (errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+      return { valid: false, error: 'API quota exceeded. Please check your Google Cloud billing.' };
+    }
+    if (errorMessage.includes('network') || errorMessage.includes('ENOTFOUND')) {
+      return { valid: false, error: 'Network error. Check your internet connection.' };
+    }
+    if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+      return { valid: false, error: 'Request timeout. Please try again.' };
+    }
+
+    // Generic error fallback
+    return {
+      valid: false,
+      error: `Failed to validate API key: ${errorMessage.substring(0, 100)}`
+    };
+  }
 }
 
 /**
