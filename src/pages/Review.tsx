@@ -66,15 +66,29 @@ async function loadScreenshotForPreview(screenshotPath: string, setImageUrl: (ur
 }
 
 export default function Review() {
-  const { actions, videoPath, defaultModel, setRoute, clearActions, setVideoPath } = useAppStore();
+  const {
+    actions, videoPath, defaultModel, judgeModel, useRag, generationStep,
+    setGenerationStep, setKbCount, setRoute, clearActions, setVideoPath,
+  } = useAppStore();
   const [testCases, setTestCases] = useState<string>('');
+  const [generatedCases, setGeneratedCases] = useState<TestForgeTestCase[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isIngestingApproved, setIsIngestingApproved] = useState(false);
+  const [generationNotice, setGenerationNotice] = useState<string | null>(null);
   const [isSavingVideo, setIsSavingVideo] = useState(false);
   const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [screenshotImageUrl, setScreenshotImageUrl] = useState<string | null>(null);
   const [isLoadingScreenshot, setIsLoadingScreenshot] = useState(false);
-  const [promptMode, setPromptMode] = useState<'detailed' | 'simple'>('detailed');
+  const [promptMode, setPromptMode] = useState<'detailed' | 'simple' | 'uploaded'>('detailed');
+  const [uploadedPromptName, setUploadedPromptName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!window.testforgeAI) return;
+    window.testforgeAI.getContextPromptInfo()
+      .then((info) => setUploadedPromptName(info.filename))
+      .catch((error: unknown) => console.warn('Could not load uploaded prompt:', error));
+  }, []);
   
   // Load video file and create blob URL for reliable playback
   useEffect(() => {
@@ -163,6 +177,9 @@ export default function Review() {
     }
 
     setIsGenerating(true);
+    setGenerationNotice(null);
+    setGenerationStep(null);
+    setGeneratedCases([]);
     if (window.ipcRenderer) {
       window.ipcRenderer.send('set-generator-active', true);
     }
@@ -179,22 +196,89 @@ export default function Review() {
         }
       }
       
-      // SECURITY: Use new secure IPC endpoint for test case generation (main process)
-      const result = await window.ipcRenderer.invoke('generate-test-cases', {
-        actions,
-        screenshots,
-        modelName: defaultModel,
-        promptMode: promptMode
-      });
-      
-      setTestCases(result as string);
+      if (useRag) {
+        let stopProgress: (() => void) | undefined;
+        try {
+          const provider = defaultModel.startsWith('claude-') ? 'claude' : 'gemini';
+          const judgeProvider = judgeModel.startsWith('claude-') ? 'claude' : 'gemini';
+          stopProgress = window.testforgeAI.onProgress(setGenerationStep);
+          const cases = await window.testforgeAI.generate({
+            actions,
+            screenshots,
+            provider,
+            model: defaultModel,
+            judgeProvider,
+            judgeModel,
+            useRag: true,
+            useUploadedPrompt: promptMode === 'uploaded',
+          });
+          setGeneratedCases(cases);
+          setTestCases(cases.map((testCase, index) => [
+            `Test Case ${index + 1}: ${testCase.title}`,
+            `ID: ${testCase.id}`,
+            `Priority: ${testCase.priority}`,
+            `Type: ${testCase.type}`,
+            `Preconditions: ${testCase.preconditions.length ? testCase.preconditions.join('; ') : 'None'}`,
+            'Steps:',
+            ...testCase.steps.map((step, stepIndex) => `  ${stepIndex + 1}. ${step}`),
+            `Expected Result: ${testCase.expectedResult}`,
+          ].join('\n')).join('\n\n'));
+        } catch (graphError) {
+          console.error('LangGraph generation failed; using the legacy generator.', graphError);
+          setGenerationNotice('Graph generation failed. The standard generator was used instead.');
+          const legacyResult = await window.ipcRenderer.invoke('generate-test-cases', {
+            actions,
+            screenshots,
+            modelName: defaultModel,
+            promptMode: promptMode === 'simple' ? 'simple' : 'detailed',
+            useUploadedPrompt: promptMode === 'uploaded',
+          });
+          setTestCases(legacyResult as string);
+        } finally {
+          stopProgress?.();
+        }
+      } else {
+        const legacyResult = await window.ipcRenderer.invoke('generate-test-cases', {
+          actions,
+          screenshots,
+          modelName: defaultModel,
+          promptMode: promptMode === 'simple' ? 'simple' : 'detailed',
+          useUploadedPrompt: promptMode === 'uploaded',
+        });
+        setTestCases(legacyResult as string);
+      }
     } catch (err: unknown) {
       alert("Error generating test cases: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       if (window.ipcRenderer) {
         window.ipcRenderer.send('set-generator-active', false);
       }
+      setGenerationStep(null);
       setIsGenerating(false);
+    }
+  };
+
+  const handleApproveForKnowledgeBase = async () => {
+    setIsIngestingApproved(true);
+    try {
+      const cases = generatedCases.length
+        ? generatedCases
+        : [{
+            id: `approved-${Date.now()}`,
+            title: 'Approved generated test cases',
+            priority: 'Medium' as const,
+            type: 'Functional' as const,
+            preconditions: [],
+            steps: [testCases],
+            expectedResult: 'See approved generated test case content.',
+          }];
+      const result = await window.testforgeAI.ingestApprovedCases(cases, 'recorded-session');
+      setKbCount(await window.testforgeAI.knowledgeCount());
+      setGenerationNotice(`${result.added} approved test case${result.added === 1 ? '' : 's'} added to the knowledge base.`);
+    } catch (error) {
+      setGenerationNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsIngestingApproved(false);
     }
   };
 
@@ -274,12 +358,13 @@ export default function Review() {
             <select
               id="prompt-select"
               value={promptMode}
-              onChange={(e) => setPromptMode(e.target.value as 'detailed' | 'simple')}
+              onChange={(e) => setPromptMode(e.target.value as 'detailed' | 'simple' | 'uploaded')}
               disabled={isGenerating}
               className="bg-slate-800 text-slate-200 text-sm rounded-lg px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50 cursor-pointer"
             >
               <option value="detailed">Detailed (Comprehensive)</option>
               <option value="simple">Simple (Lightweight)</option>
+              {uploadedPromptName && <option value="uploaded">Uploaded: {uploadedPromptName}</option>}
             </select>
           </div>
           
@@ -377,6 +462,15 @@ export default function Review() {
              </h2>
              {testCases && (
                <div className="flex gap-2">
+                <button
+                  onClick={handleApproveForKnowledgeBase}
+                  disabled={isIngestingApproved}
+                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-emerald-400 transition-colors text-sm font-medium disabled:opacity-50"
+                  title="Add these reviewed cases to the knowledge base"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {isIngestingApproved ? 'Adding...' : 'Approve for KB'}
+                </button>
                  <button onClick={handleExportDocx} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-blue-400 transition-colors text-sm font-medium">
                    <Download className="w-4 h-4" /> DOCX
                  </button>
@@ -388,10 +482,17 @@ export default function Review() {
            </div>
            
            <div className="flex-1 p-8 overflow-y-auto w-full bg-slate-900/30 custom-scrollbar">
+             {generationNotice && (
+               <p className="mb-4 text-sm text-emerald-300" role="status">{generationNotice}</p>
+             )}
              {isGenerating ? (
                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-6">
                  <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                 <p className="animate-pulse font-medium text-lg">AI is analyzing your session...</p>
+                 <p className="animate-pulse font-medium text-lg" aria-live="polite">
+                   {generationStep
+                     ? ({ normalize: 'Preparing steps', retrieve: 'Searching knowledge base', generate: 'Writing test cases', validate: 'Reviewing test cases' } as Record<string, string>)[generationStep] ?? 'Processing generation'
+                     : 'AI is analyzing your session...'}
+                 </p>
                </div>
              ) : testCases ? (
                <div className="prose prose-invert prose-p:text-slate-300 prose-headings:text-slate-100 prose-a:text-blue-400 max-w-none whitespace-pre-wrap font-sans">

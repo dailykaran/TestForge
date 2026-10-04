@@ -7,6 +7,49 @@ import { IPC_CHANNELS } from './ipcChannels';
 import { getGeminiApiKey, setGeminiApiKey, getClaudeApiKey, setClaudeApiKey, clearAllApiKeys } from './keyStore';
 import { generateTestCasesWithGemini } from './geminiApiHandler';
 import { generateTestCasesWithClaude } from './claudeApiHandler';
+import { buildGraph } from "./graph";
+import { makeChatModel } from "./graph/models";
+import { ingestApprovedCases, ingestFiles } from "./rag/ingest";
+import { LanceRetriever } from "./rag/lancedbRetriever";
+import { makeEmbeddings } from "./rag/embeddings";
+
+let lanceRetrieverPromise: Promise<LanceRetriever> | undefined;
+
+async function getLanceRetriever(): Promise<LanceRetriever> {
+  if (!lanceRetrieverPromise) {
+    lanceRetrieverPromise = (async () => {
+      const apiKey = await getGeminiApiKey();
+      if (!apiKey) throw new Error('Add a Gemini API key to use the knowledge base.');
+      return new LanceRetriever(path.join(app.getPath('userData'), 'kb'), makeEmbeddings(apiKey));
+    })();
+  }
+  try {
+    return await lanceRetrieverPromise;
+  } catch (error) {
+    lanceRetrieverPromise = undefined;
+    throw error;
+  }
+}
+
+async function getProviderApiKey(provider: 'claude' | 'gemini'): Promise<string> {
+  const apiKey = provider === 'claude' ? await getClaudeApiKey() : await getGeminiApiKey();
+  if (!apiKey) throw new Error(`Add a ${provider === 'claude' ? 'Claude' : 'Gemini'} API key in Settings.`);
+  return apiKey;
+}
+
+const CONTEXT_PROMPT_FILE = 'context-detail-prompt.json';
+
+function getContextPromptPath(): string {
+  return path.join(app.getPath('userData'), CONTEXT_PROMPT_FILE);
+}
+
+function readContextPrompt(): { filename: string; content: string } | null {
+  const promptPath = getContextPromptPath();
+  if (!fs.existsSync(promptPath)) return null;
+  const saved = JSON.parse(fs.readFileSync(promptPath, 'utf8')) as { filename?: unknown; content?: unknown };
+  if (typeof saved.filename !== 'string' || typeof saved.content !== 'string') return null;
+  return { filename: saved.filename, content: saved.content };
+}
 
 export function setupIpcHandlers(win: BrowserWindow) {
   try {
@@ -199,13 +242,15 @@ export function setupIpcHandlers(win: BrowserWindow) {
 
   // SECURITY: Test case generation moved to main process (away from browser context)
   ipcMain.handle(IPC_CHANNELS['generate-test-cases'], async (_, actionData: unknown) => {
-    const data = actionData as { actions: unknown; screenshots: unknown; modelName: string; promptMode?: 'detailed' | 'simple' };
-    const { actions, screenshots, modelName, promptMode = 'detailed' } = data;
+    const data = actionData as { actions: unknown; screenshots: unknown; modelName: string; promptMode?: 'detailed' | 'simple'; useUploadedPrompt?: boolean };
+    const { actions, screenshots, modelName, promptMode = 'detailed', useUploadedPrompt = false } = data;
+    const contextPrompt = useUploadedPrompt ? readContextPrompt()?.content : undefined;
+    if (useUploadedPrompt && !contextPrompt) throw new Error('The uploaded context prompt is unavailable. Upload it again in Settings.');
     try {
       if (modelName && modelName.includes('gemini')) {
-        return await generateTestCasesWithGemini(actions as never, screenshots as never, modelName, promptMode);
+        return await generateTestCasesWithGemini(actions as never, screenshots as never, modelName, promptMode, contextPrompt);
       } else {
-        return await generateTestCasesWithClaude(actions as never, screenshots as never, modelName);
+        return await generateTestCasesWithClaude(actions as never, screenshots as never, modelName, contextPrompt);
       }
     } catch (error: unknown) {
       console.error('Error generating test cases:', error);
@@ -234,4 +279,108 @@ export function setupIpcHandlers(win: BrowserWindow) {
   } catch (err) {
     console.error('Failed to register ipc-auto-test-result handler:', err);
   }
+
+  ipcMain.handle("testcases:generate", async (event, payload: {
+    actions: import('./graph/state').RecordedAction[];
+    screenshots?: string[];
+    provider: 'claude' | 'gemini';
+    model: string;
+    judgeProvider?: 'claude' | 'gemini';
+    judgeModel?: string;
+    useRag?: boolean;
+    useUploadedPrompt?: boolean;
+  }) => {
+    const provider = payload.provider;
+    const judgeProvider = payload.judgeProvider ?? provider;
+    const contextPrompt = payload.useUploadedPrompt ? readContextPrompt()?.content : undefined;
+    if (payload.useUploadedPrompt && !contextPrompt) throw new Error('The uploaded context prompt is unavailable. Upload it again in Settings.');
+    const retriever = payload.useRag ? await getLanceRetriever() : {
+      ingest: async () => undefined,
+      search: async () => [],
+      count: async () => 0,
+    };
+    const graph = buildGraph({
+      retriever,
+      generator: makeChatModel(provider, payload.model, await getProviderApiKey(provider)),
+      judge: makeChatModel(judgeProvider, payload.judgeModel ?? payload.model, await getProviderApiKey(judgeProvider)),
+      useRag: payload.useRag ?? false,
+      contextPrompt,
+    });
+
+    const stream = await graph.stream(
+      { actions: payload.actions, screenshots: payload.screenshots ?? [], query: "", context: [], testCases: [], critique: "", iterations: 0 },
+      { streamMode: ["updates", "values"] }
+    );
+
+    let finalState: { testCases?: unknown[] } | undefined;
+    for await (const [mode, data] of stream) {
+      if (mode === "updates") event.sender.send("testcases:progress", Object.keys(data as object)[0]);
+      else finalState = data as { testCases?: unknown[] };
+    }
+    if (!finalState?.testCases) throw new Error('The generation graph returned no test cases.');
+    return finalState.testCases;
+  });
+
+  ipcMain.handle("kb:addFiles", async (event) => {
+    const options: Electron.OpenDialogOptions = {
+      properties: ["openFile", "multiSelections"],
+      filters: [{ name: "Documents", extensions: ["md", "txt", "json"] }],
+    };
+    const owner = BrowserWindow.fromWebContents(event.sender);
+    const res = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options);
+    if (res.canceled) return { added: 0 };
+    return { added: await ingestFiles(await getLanceRetriever(), res.filePaths) };
+  });
+
+  ipcMain.handle("kb:count", async () => (await getLanceRetriever()).count());
+
+  ipcMain.handle("kb:clear", async () => {
+    await LanceRetriever.clear(path.join(app.getPath('userData'), 'kb'));
+    return { cleared: true };
+  });
+
+  ipcMain.handle("kb:ingest-approved", async (_, payload: { cases: unknown[]; feature: string }) => {
+    if (!Array.isArray(payload?.cases) || payload.cases.length === 0) {
+      throw new Error('No approved test cases were provided.');
+    }
+    const feature = typeof payload.feature === 'string' ? payload.feature.slice(0, 120) : 'recorded-session';
+    await ingestApprovedCases(await getLanceRetriever(), payload.cases, feature);
+    return { added: payload.cases.length };
+  });
+
+  ipcMain.handle('context-prompt:get', () => {
+    const prompt = readContextPrompt();
+    return prompt ? { filename: prompt.filename, exists: true } : { filename: null, exists: false };
+  });
+
+  ipcMain.handle('context-prompt:upload', async (event) => {
+    const options: Electron.OpenDialogOptions = {
+      properties: ['openFile'],
+      filters: [{ name: 'Prompt files', extensions: ['md', 'txt'] }],
+    };
+    const owner = BrowserWindow.fromWebContents(event.sender);
+    const result = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options);
+    if (result.canceled || !result.filePaths[0]) return { filename: null };
+
+    const selectedPath = result.filePaths[0];
+    const content = fs.readFileSync(selectedPath, 'utf8').trim();
+    if (!content) throw new Error('The selected prompt file is empty.');
+    if (Buffer.byteLength(content, 'utf8') > 100_000) throw new Error('Prompt files must be 100 KB or smaller.');
+
+    const filename = path.basename(selectedPath);
+    fs.writeFileSync(getContextPromptPath(), JSON.stringify({ filename, content }), 'utf8');
+    return { filename };
+  });
+
+  ipcMain.handle('context-prompt:clear', () => {
+    const promptPath = getContextPromptPath();
+    if (fs.existsSync(promptPath)) fs.unlinkSync(promptPath);
+    return { cleared: true };
+  });
+
+
 }

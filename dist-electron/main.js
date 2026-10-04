@@ -7,6 +7,14 @@ import screenshot from "screenshot-desktop";
 import { v4 } from "uuid";
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import { z } from "zod";
+import { ChatAnthropic } from "@langchain/anthropic";
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import fs$1 from "node:fs/promises";
+import path$1 from "node:path";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import * as lancedb from "@lancedb/lancedb";
 //#region electron/pathValidator.ts
 /**
 * Path validation utility to prevent directory traversal and unauthorized file access
@@ -688,14 +696,15 @@ function logGeminiInteraction(type, data) {
 * @param promptMode - Prompt variant to use: 'detailed' for comprehensive, 'simple' for lightweight (default: 'detailed')
 * @returns Promise resolving to generated test cases as string
 */
-async function generateTestCasesWithGemini(actions, screenshots, modelName = "gemini-2.5-flash", promptMode = "detailed") {
+async function generateTestCasesWithGemini(actions, screenshots, modelName = "gemini-2.5-flash", promptMode = "detailed", contextPrompt) {
 	try {
 		const apiKey = await getGeminiApiKey();
 		if (!apiKey?.trim()) throw new Error("Gemini API key not found. Please configure it in Settings.");
 		if (actions.length === 0) throw new Error("No actions provided for test case generation");
 		const selectedPrompt = promptMode === "simple" ? GEMINI_SIMPLE_PROMPT : GEMINI_DETAILED_PROMPT;
 		const genAI = new GoogleGenAI({ apiKey });
-		const prompt = `${selectedPrompt}\n\nACTION LOG FROM RECORDING:\n${formatActionsToText$1(actions)}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Do NOT include per-step 'Expected' or 'Visual Check' lines; provide a concise Expected summary at the end of the test case instead\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
+		const actionLog = formatActionsToText$1(actions);
+		const prompt = `${selectedPrompt}${contextPrompt ? `\n\nADDITIONAL CONTEXT DETAIL PROMPT:\n${contextPrompt}` : ""}\n\nACTION LOG FROM RECORDING:\n${actionLog}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Do NOT include per-step 'Expected' or 'Visual Check' lines; provide a concise Expected summary at the end of the test case instead\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
 		const contentParts = [{ text: prompt }];
 		const validScreenshots = screenshots.filter((b64) => b64?.trim());
 		if (validScreenshots.length > 0) validScreenshots.forEach((b64) => {
@@ -747,7 +756,7 @@ function formatActionsToText(actions) {
 * @param modelName - Model to use (default: claude-3-5-sonnet-20241022)
 * @returns Promise resolving to generated test cases as string
 */
-async function generateTestCasesWithClaude(actions, screenshots, modelName = "claude-3-5-sonnet-20241022") {
+async function generateTestCasesWithClaude(actions, screenshots, modelName = "claude-3-5-sonnet-20241022", contextPrompt) {
 	try {
 		const apiKey = await getClaudeApiKey();
 		if (!apiKey?.trim()) throw new Error("Claude API key not found. Please configure it in Settings.");
@@ -761,7 +770,8 @@ async function generateTestCasesWithClaude(actions, screenshots, modelName = "cl
 				data: b64
 			}
 		}));
-		const userPrompt = `ACTION LOG:\n${formatActionsToText(actions)}\n\nGenerate complete test cases based on this session.`;
+		const actionLog = formatActionsToText(actions);
+		const userPrompt = `${contextPrompt ? `ADDITIONAL CONTEXT DETAIL PROMPT:\n${contextPrompt}\n\n` : ""}ACTION LOG:\n${actionLog}\n\nGenerate complete test cases based on this session.`;
 		const textBlock = (await client.messages.create({
 			model: modelName,
 			max_tokens: MAX_TOKENS,
@@ -782,7 +792,206 @@ async function generateTestCasesWithClaude(actions, screenshots, modelName = "cl
 	}
 }
 //#endregion
+//#region electron/graph/state.ts
+var TestCaseSchema = z.object({
+	id: z.string(),
+	title: z.string(),
+	priority: z.enum([
+		"High",
+		"Medium",
+		"Low"
+	]),
+	type: z.enum([
+		"Functional",
+		"Negative",
+		"Boundary",
+		"UI"
+	]),
+	preconditions: z.array(z.string()),
+	steps: z.array(z.string()),
+	expectedResult: z.string()
+});
+var GraphState = Annotation.Root({
+	actions: Annotation(),
+	screenshots: Annotation(),
+	query: Annotation(),
+	context: Annotation(),
+	testCases: Annotation(),
+	critique: Annotation(),
+	iterations: Annotation()
+});
+//#endregion
+//#region electron/graph/nodes.ts
+var normalizeActions = async (s) => {
+	return { query: s.actions.map((a) => {
+		const detail = a.label || a.target || a.value || a.keyCombo || a.url || a.elementHint;
+		return `${a.type}${detail ? `: ${detail}` : ""}`;
+	}).join("; ") };
+};
+var makeRetrieve = (retriever) => async (s) => {
+	return { context: await retriever.search(s.query, 6) };
+};
+var makeGenerate = (llm, contextPrompt) => async (s) => {
+	const structured = llm.withStructuredOutput(z.object({ testCases: z.array(TestCaseSchema) }));
+	const system = "You are a senior QA engineer. Write complete, executable test cases from the recorded user actions. Use the reference context for style, naming and coverage ideas, but never invent UI elements that do not appear in the recorded steps." + (contextPrompt ? `\n\nAdditional context detail instructions:\n${contextPrompt}` : "");
+	const user = `Recorded steps:\n${s.query}\n\nReference context:\n${s.context.length ? s.context.join("\n---\n") : "(none)"}\n\n` + (s.critique ? `A reviewer found these problems. Fix them:\n${s.critique}\n` : "");
+	return {
+		testCases: (await structured.invoke([{
+			role: "system",
+			content: system
+		}, {
+			role: "user",
+			content: user
+		}])).testCases,
+		iterations: (s.iterations ?? 0) + 1
+	};
+};
+var makeValidate = (judge) => async (s) => {
+	const verdict = await judge.withStructuredOutput(z.object({
+		pass: z.boolean(),
+		critique: z.string()
+	})).invoke(`Review these test cases against the recorded steps. Check: (1) every recorded step is covered, (2) steps are accurate and in order, (3) nothing is invented, (4) expected results are specific.
+
+Recorded steps:\n${s.query}\n\nTest cases:\n${JSON.stringify(s.testCases, null, 2)}`);
+	return { critique: verdict.pass ? "" : verdict.critique };
+};
+//#endregion
+//#region electron/graph/index.ts
+var MAX_ITERATIONS = 3;
+function buildGraph(deps) {
+	return new StateGraph(GraphState).addNode("normalize", normalizeActions).addNode("retrieve", deps.useRag ? makeRetrieve(deps.retriever) : async () => ({ context: [] })).addNode("generate", makeGenerate(deps.generator, deps.contextPrompt)).addNode("validate", makeValidate(deps.judge)).addEdge(START, "normalize").addEdge("normalize", "retrieve").addEdge("retrieve", "generate").addEdge("generate", "validate").addConditionalEdges("validate", (s) => s.critique && s.iterations < MAX_ITERATIONS ? "generate" : END).compile();
+}
+//#endregion
+//#region electron/graph/models.ts
+function makeChatModel(provider, model, apiKey) {
+	return provider === "claude" ? new ChatAnthropic({
+		model,
+		apiKey,
+		temperature: .2
+	}) : new ChatGoogleGenerativeAI({
+		model,
+		apiKey,
+		temperature: .2
+	});
+}
+//#endregion
+//#region electron/rag/ingest.ts
+async function ingestFiles(retriever, files) {
+	const splitter = new RecursiveCharacterTextSplitter({
+		chunkSize: 800,
+		chunkOverlap: 120
+	});
+	const docs = [];
+	for (const file of files) {
+		const ext = path$1.extname(file).toLowerCase();
+		if (ext !== ".md" && ext !== ".txt" && ext !== ".json") continue;
+		const text = await fs$1.readFile(file, "utf8");
+		(await splitter.splitText(text)).forEach((c) => docs.push({
+			text: c,
+			meta: { source: path$1.basename(file) }
+		}));
+	}
+	await retriever.ingest(docs);
+	return docs.length;
+}
+async function ingestApprovedCases(retriever, cases, feature) {
+	const docs = cases.map((c) => ({
+		text: JSON.stringify(c),
+		meta: {
+			source: "approved-test-case",
+			feature
+		}
+	}));
+	await retriever.ingest(docs);
+}
+//#endregion
+//#region electron/rag/lancedbRetriever.ts
+var TABLE = "knowledge_base";
+var LanceRetriever = class {
+	dir;
+	embeddings;
+	db;
+	constructor(dir, embeddings) {
+		this.dir = dir;
+		this.embeddings = embeddings;
+	}
+	async connect() {
+		if (!this.db) this.db = await lancedb.connect(this.dir);
+		return this.db;
+	}
+	async ingest(docs) {
+		if (!docs.length) return;
+		const db = await this.connect();
+		const vectors = await this.embeddings.embedDocuments(docs.map((d) => d.text));
+		const rows = docs.map((d, i) => ({
+			vector: vectors[i],
+			text: d.text,
+			source: d.meta.source ?? "",
+			feature: d.meta.feature ?? ""
+		}));
+		if ((await db.tableNames()).includes(TABLE)) await (await db.openTable(TABLE)).add(rows);
+		else await db.createTable(TABLE, rows);
+	}
+	async search(query, k) {
+		const db = await this.connect();
+		if (!(await db.tableNames()).includes(TABLE)) return [];
+		const t = await db.openTable(TABLE);
+		const qv = await this.embeddings.embedQuery(query);
+		return (await t.search(qv).limit(k).toArray()).map((row) => row.text);
+	}
+	async count() {
+		const db = await this.connect();
+		if (!(await db.tableNames()).includes(TABLE)) return 0;
+		return (await db.openTable(TABLE)).countRows();
+	}
+	static async clear(dir) {
+		const db = await lancedb.connect(dir);
+		if ((await db.tableNames()).includes(TABLE)) await db.dropTable(TABLE);
+	}
+};
+//#endregion
+//#region electron/rag/embeddings.ts
+function makeEmbeddings(geminiApiKey) {
+	return new GoogleGenerativeAIEmbeddings({
+		model: "gemini-embedding-001",
+		apiKey: geminiApiKey
+	});
+}
+//#endregion
 //#region electron/ipcHandlers.ts
+var lanceRetrieverPromise;
+async function getLanceRetriever() {
+	if (!lanceRetrieverPromise) lanceRetrieverPromise = (async () => {
+		const apiKey = await getGeminiApiKey();
+		if (!apiKey) throw new Error("Add a Gemini API key to use the knowledge base.");
+		return new LanceRetriever(path.join(app.getPath("userData"), "kb"), makeEmbeddings(apiKey));
+	})();
+	try {
+		return await lanceRetrieverPromise;
+	} catch (error) {
+		lanceRetrieverPromise = void 0;
+		throw error;
+	}
+}
+async function getProviderApiKey(provider) {
+	const apiKey = provider === "claude" ? await getClaudeApiKey() : await getGeminiApiKey();
+	if (!apiKey) throw new Error(`Add a ${provider === "claude" ? "Claude" : "Gemini"} API key in Settings.`);
+	return apiKey;
+}
+var CONTEXT_PROMPT_FILE = "context-detail-prompt.json";
+function getContextPromptPath() {
+	return path.join(app.getPath("userData"), CONTEXT_PROMPT_FILE);
+}
+function readContextPrompt() {
+	const promptPath = getContextPromptPath();
+	if (!fs.existsSync(promptPath)) return null;
+	const saved = JSON.parse(fs.readFileSync(promptPath, "utf8"));
+	if (typeof saved.filename !== "string" || typeof saved.content !== "string") return null;
+	return {
+		filename: saved.filename,
+		content: saved.content
+	};
+}
 function setupIpcHandlers(win) {
 	try {
 		setObserverWindow(win);
@@ -959,10 +1168,12 @@ function setupIpcHandlers(win) {
 		}
 	});
 	ipcMain.handle(IPC_CHANNELS["generate-test-cases"], async (_, actionData) => {
-		const { actions, screenshots, modelName, promptMode = "detailed" } = actionData;
+		const { actions, screenshots, modelName, promptMode = "detailed", useUploadedPrompt = false } = actionData;
+		const contextPrompt = useUploadedPrompt ? readContextPrompt()?.content : void 0;
+		if (useUploadedPrompt && !contextPrompt) throw new Error("The uploaded context prompt is unavailable. Upload it again in Settings.");
 		try {
-			if (modelName && modelName.includes("gemini")) return await generateTestCasesWithGemini(actions, screenshots, modelName, promptMode);
-			else return await generateTestCasesWithClaude(actions, screenshots, modelName);
+			if (modelName && modelName.includes("gemini")) return await generateTestCasesWithGemini(actions, screenshots, modelName, promptMode, contextPrompt);
+			else return await generateTestCasesWithClaude(actions, screenshots, modelName, contextPrompt);
 		} catch (error) {
 			console.error("Error generating test cases:", error);
 			throw error;
@@ -988,6 +1199,101 @@ function setupIpcHandlers(win) {
 	} catch (err) {
 		console.error("Failed to register ipc-auto-test-result handler:", err);
 	}
+	ipcMain.handle("testcases:generate", async (event, payload) => {
+		const provider = payload.provider;
+		const judgeProvider = payload.judgeProvider ?? provider;
+		const contextPrompt = payload.useUploadedPrompt ? readContextPrompt()?.content : void 0;
+		if (payload.useUploadedPrompt && !contextPrompt) throw new Error("The uploaded context prompt is unavailable. Upload it again in Settings.");
+		const stream = await buildGraph({
+			retriever: payload.useRag ? await getLanceRetriever() : {
+				ingest: async () => void 0,
+				search: async () => [],
+				count: async () => 0
+			},
+			generator: makeChatModel(provider, payload.model, await getProviderApiKey(provider)),
+			judge: makeChatModel(judgeProvider, payload.judgeModel ?? payload.model, await getProviderApiKey(judgeProvider)),
+			useRag: payload.useRag ?? false,
+			contextPrompt
+		}).stream({
+			actions: payload.actions,
+			screenshots: payload.screenshots ?? [],
+			query: "",
+			context: [],
+			testCases: [],
+			critique: "",
+			iterations: 0
+		}, { streamMode: ["updates", "values"] });
+		let finalState;
+		for await (const [mode, data] of stream) if (mode === "updates") event.sender.send("testcases:progress", Object.keys(data)[0]);
+		else finalState = data;
+		if (!finalState?.testCases) throw new Error("The generation graph returned no test cases.");
+		return finalState.testCases;
+	});
+	ipcMain.handle("kb:addFiles", async (event) => {
+		const options = {
+			properties: ["openFile", "multiSelections"],
+			filters: [{
+				name: "Documents",
+				extensions: [
+					"md",
+					"txt",
+					"json"
+				]
+			}]
+		};
+		const owner = BrowserWindow.fromWebContents(event.sender);
+		const res = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options);
+		if (res.canceled) return { added: 0 };
+		return { added: await ingestFiles(await getLanceRetriever(), res.filePaths) };
+	});
+	ipcMain.handle("kb:count", async () => (await getLanceRetriever()).count());
+	ipcMain.handle("kb:clear", async () => {
+		await LanceRetriever.clear(path.join(app.getPath("userData"), "kb"));
+		return { cleared: true };
+	});
+	ipcMain.handle("kb:ingest-approved", async (_, payload) => {
+		if (!Array.isArray(payload?.cases) || payload.cases.length === 0) throw new Error("No approved test cases were provided.");
+		const feature = typeof payload.feature === "string" ? payload.feature.slice(0, 120) : "recorded-session";
+		await ingestApprovedCases(await getLanceRetriever(), payload.cases, feature);
+		return { added: payload.cases.length };
+	});
+	ipcMain.handle("context-prompt:get", () => {
+		const prompt = readContextPrompt();
+		return prompt ? {
+			filename: prompt.filename,
+			exists: true
+		} : {
+			filename: null,
+			exists: false
+		};
+	});
+	ipcMain.handle("context-prompt:upload", async (event) => {
+		const options = {
+			properties: ["openFile"],
+			filters: [{
+				name: "Prompt files",
+				extensions: ["md", "txt"]
+			}]
+		};
+		const owner = BrowserWindow.fromWebContents(event.sender);
+		const result = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options);
+		if (result.canceled || !result.filePaths[0]) return { filename: null };
+		const selectedPath = result.filePaths[0];
+		const content = fs.readFileSync(selectedPath, "utf8").trim();
+		if (!content) throw new Error("The selected prompt file is empty.");
+		if (Buffer.byteLength(content, "utf8") > 1e5) throw new Error("Prompt files must be 100 KB or smaller.");
+		const filename = path.basename(selectedPath);
+		fs.writeFileSync(getContextPromptPath(), JSON.stringify({
+			filename,
+			content
+		}), "utf8");
+		return { filename };
+	});
+	ipcMain.handle("context-prompt:clear", () => {
+		const promptPath = getContextPromptPath();
+		if (fs.existsSync(promptPath)) fs.unlinkSync(promptPath);
+		return { cleared: true };
+	});
 }
 //#endregion
 //#region electron/iconHelper.ts

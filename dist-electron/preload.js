@@ -75,11 +75,6 @@ try {
 			} catch (e) {
 				console.warn("Failed to send ipc-auto-test-result success", e);
 			}
-			setTimeout(() => {
-				try {
-					globalThis.window?.close?.();
-				} catch (e) {}
-			}, 800);
 		} catch (err) {
 			console.error("IPC auto-test: failed", err);
 			try {
@@ -95,4 +90,22 @@ try {
 } catch (err) {
 	console.error("IPC auto-test bootstrap failed:", err);
 }
+electron.contextBridge.exposeInMainWorld("testforgeAI", {
+	generate: (payload) => electron.ipcRenderer.invoke("testcases:generate", payload),
+	onProgress: (cb) => {
+		const handler = (_e, node) => cb(node);
+		electron.ipcRenderer.on("testcases:progress", handler);
+		return () => electron.ipcRenderer.removeListener("testcases:progress", handler);
+	},
+	addKnowledgeFiles: () => electron.ipcRenderer.invoke("kb:addFiles"),
+	knowledgeCount: () => electron.ipcRenderer.invoke("kb:count"),
+	clearKnowledgeBase: () => electron.ipcRenderer.invoke("kb:clear"),
+	ingestApprovedCases: (cases, feature) => electron.ipcRenderer.invoke("kb:ingest-approved", {
+		cases,
+		feature
+	}),
+	getContextPromptInfo: () => electron.ipcRenderer.invoke("context-prompt:get"),
+	uploadContextPrompt: () => electron.ipcRenderer.invoke("context-prompt:upload"),
+	clearContextPrompt: () => electron.ipcRenderer.invoke("context-prompt:clear")
+});
 //#endregion
