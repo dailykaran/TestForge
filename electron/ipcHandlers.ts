@@ -289,6 +289,7 @@ export function setupIpcHandlers(win: BrowserWindow) {
     judgeModel?: string;
     useRag?: boolean;
     useUploadedPrompt?: boolean;
+    testCaseSummary?: string;
   }) => {
     const provider = payload.provider;
     const judgeProvider = payload.judgeProvider ?? provider;
@@ -305,20 +306,26 @@ export function setupIpcHandlers(win: BrowserWindow) {
       judge: makeChatModel(judgeProvider, payload.judgeModel ?? payload.model, await getProviderApiKey(judgeProvider)),
       useRag: payload.useRag ?? false,
       contextPrompt,
+      testCaseSummary: typeof payload.testCaseSummary === 'string' ? payload.testCaseSummary.slice(0, 2000) : undefined,
     });
 
-    const stream = await graph.stream(
-      { actions: payload.actions, screenshots: payload.screenshots ?? [], query: "", context: [], testCases: [], critique: "", iterations: 0 },
-      { streamMode: ["updates", "values"] }
-    );
+    try {
+      const stream = await graph.stream(
+        { actions: payload.actions, screenshots: payload.screenshots ?? [], query: "", context: [], testCases: [], critique: "", iterations: 0 },
+        { streamMode: ["updates", "values"] }
+      );
 
-    let finalState: { testCases?: unknown[] } | undefined;
-    for await (const [mode, data] of stream) {
-      if (mode === "updates") event.sender.send("testcases:progress", Object.keys(data as object)[0]);
-      else finalState = data as { testCases?: unknown[] };
+      let finalState: { testCases?: unknown[] } | undefined;
+      for await (const [mode, data] of stream) {
+        if (mode === "updates") event.sender.send("testcases:progress", Object.keys(data as object)[0]);
+        else finalState = data as { testCases?: unknown[] };
+      }
+      if (!finalState?.testCases?.length) throw new Error('The generation graph returned no test cases.');
+      return finalState.testCases;
+    } catch (error) {
+      console.error('LangGraph generation failed:', error);
+      throw error;
     }
-    if (!finalState?.testCases) throw new Error('The generation graph returned no test cases.');
-    return finalState.testCases;
   });
 
   ipcMain.handle("kb:addFiles", async (event) => {

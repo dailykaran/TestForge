@@ -12,12 +12,13 @@ export function buildGraph(deps: {
   judge: BaseChatModel;
   useRag: boolean;
   contextPrompt?: string;
+  testCaseSummary?: string;
 }) {
   const g = new StateGraph(GraphState)
     .addNode("normalize", normalizeActions)
     .addNode("retrieve", deps.useRag ? makeRetrieve(deps.retriever) : async () => ({ context: [] }))
-    .addNode("generate", makeGenerate(deps.generator, deps.contextPrompt))
-    .addNode("validate", makeValidate(deps.judge))
+    .addNode("generate", makeGenerate(deps.generator, deps.contextPrompt, deps.testCaseSummary))
+    .addNode("validate", makeValidate(deps.judge, deps.testCaseSummary))
     .addEdge(START, "normalize")
     .addEdge("normalize", "retrieve")
     .addEdge("retrieve", "generate")

@@ -5,7 +5,9 @@ declare global {
     priority: 'High' | 'Medium' | 'Low';
     type: 'Functional' | 'Negative' | 'Boundary' | 'UI';
     preconditions: string[];
-    steps: string[];
+    setupSteps: string[];
+    actionSteps: string[];
+    cleanupSteps: string[];
     expectedResult: string;
   }
 
@@ -25,6 +27,7 @@ declare global {
         judgeModel: string;
         useRag: boolean;
         useUploadedPrompt?: boolean;
+        testCaseSummary?: string;
       }) => Promise<TestForgeTestCase[]>;
       onProgress: (callback: (node: string) => void) => () => void;
       addKnowledgeFiles: () => Promise<{ added: number }>;

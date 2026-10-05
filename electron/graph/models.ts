@@ -10,6 +10,6 @@ export function makeChatModel(
   apiKey: string       // from your existing keychain getter
 ): BaseChatModel {
   return provider === "claude"
-    ? new ChatAnthropic({ model, apiKey, temperature: 0.2 })
-    : new ChatGoogleGenerativeAI({ model, apiKey, temperature: 0.2 });
+    ? new ChatAnthropic({ model, apiKey, temperature: 0.2, maxTokens: 8192 })
+    : new ChatGoogleGenerativeAI({ model, apiKey, temperature: 0.2, maxOutputTokens: 16384 });
 }

@@ -82,6 +82,9 @@ export default function Review() {
   const [isLoadingScreenshot, setIsLoadingScreenshot] = useState(false);
   const [promptMode, setPromptMode] = useState<'detailed' | 'simple' | 'uploaded'>('detailed');
   const [uploadedPromptName, setUploadedPromptName] = useState<string | null>(null);
+  const [testCaseSummary, setTestCaseSummary] = useState('');
+  const showSummaryInput = useRag && promptMode === 'uploaded';
+  const testCaseLineCount = testCases ? testCases.split('\n').length : 0;
 
   useEffect(() => {
     if (!window.testforgeAI) return;
@@ -211,6 +214,7 @@ export default function Review() {
             judgeModel,
             useRag: true,
             useUploadedPrompt: promptMode === 'uploaded',
+            testCaseSummary: promptMode === 'uploaded' ? testCaseSummary.trim() : undefined,
           });
           setGeneratedCases(cases);
           setTestCases(cases.map((testCase, index) => [
@@ -219,13 +223,24 @@ export default function Review() {
             `Priority: ${testCase.priority}`,
             `Type: ${testCase.type}`,
             `Preconditions: ${testCase.preconditions.length ? testCase.preconditions.join('; ') : 'None'}`,
-            'Steps:',
-            ...testCase.steps.map((step, stepIndex) => `  ${stepIndex + 1}. ${step}`),
+            'Setup Steps:',
+            ...(testCase.setupSteps.length
+              ? testCase.setupSteps.map((step, stepIndex) => `  ${stepIndex + 1}. ${step}`)
+              : ['  None']),
+            'Action Steps:',
+            ...(testCase.actionSteps.length
+              ? testCase.actionSteps.map((step, stepIndex) => `  ${stepIndex + 1}. ${step}`)
+              : ['  None']),
+            'Cleanup Steps:',
+            ...(testCase.cleanupSteps.length
+              ? testCase.cleanupSteps.map((step, stepIndex) => `  ${stepIndex + 1}. ${step}`)
+              : ['  None']),
             `Expected Result: ${testCase.expectedResult}`,
           ].join('\n')).join('\n\n'));
         } catch (graphError) {
           console.error('LangGraph generation failed; using the legacy generator.', graphError);
-          setGenerationNotice('Graph generation failed. The standard generator was used instead.');
+          const reason = graphError instanceof Error ? graphError.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(graphError);
+          setGenerationNotice(`Graph generation failed (${reason.slice(0, 200)}). The standard generator was used instead.`);
           const legacyResult = await window.ipcRenderer.invoke('generate-test-cases', {
             actions,
             screenshots,
@@ -269,7 +284,9 @@ export default function Review() {
             priority: 'Medium' as const,
             type: 'Functional' as const,
             preconditions: [],
-            steps: [testCases],
+            setupSteps: [],
+            actionSteps: [testCases],
+            cleanupSteps: [],
             expectedResult: 'See approved generated test case content.',
           }];
       const result = await window.testforgeAI.ingestApprovedCases(cases, 'recorded-session');
@@ -378,6 +395,24 @@ export default function Review() {
           </button>
         </div>
       </header>
+
+      {showSummaryInput && (
+        <div className="px-8 pt-6 max-w-[1400px] mx-auto w-full">
+          <label htmlFor="testcase-summary" className="block text-sm font-medium text-slate-300 mb-2">
+            Test case summary
+          </label>
+          <textarea
+            id="testcase-summary"
+            value={testCaseSummary}
+            onChange={(e) => setTestCaseSummary(e.target.value)}
+            disabled={isGenerating}
+            rows={3}
+            maxLength={2000}
+            placeholder="Briefly describe what this recording tests. Steps will be refined against the exact recorded actions."
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50"
+          />
+        </div>
+      )}
       
       <div className="flex-1 p-8 max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8 h-full min-h-0">
         
@@ -409,7 +444,10 @@ export default function Review() {
           
           <div className="bg-slate-800/50 rounded-3xl border border-slate-700/50 p-6 flex flex-col flex-1 min-h-0 shadow-lg">
              <h3 className="text-lg font-semibold mb-4 text-slate-200 shrink-0">Captured Actions ({actions.length})</h3>
-             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+             <div
+               className="flex-1 overflow-y-auto space-y-2 pr-2"
+               style={actions.length > 20 ? { maxHeight: '75rem' } : undefined} // 20 rows of 3.75rem
+             >
                {actions.map(a => (
                  <div 
                    key={a.id} 
@@ -481,7 +519,10 @@ export default function Review() {
              )}
            </div>
            
-           <div className="flex-1 p-8 overflow-y-auto w-full bg-slate-900/30 custom-scrollbar">
+           <div
+             className="flex-1 p-8 overflow-y-auto w-full bg-slate-900/30 custom-scrollbar"
+             style={testCaseLineCount > 30 ? { maxHeight: '49rem' } : undefined} // 30 lines of 1.5rem plus 4rem padding
+           >
              {generationNotice && (
                <p className="mb-4 text-sm text-emerald-300" role="status">{generationNotice}</p>
              )}
@@ -495,7 +536,7 @@ export default function Review() {
                  </p>
                </div>
              ) : testCases ? (
-               <div className="prose prose-invert prose-p:text-slate-300 prose-headings:text-slate-100 prose-a:text-blue-400 max-w-none whitespace-pre-wrap font-sans">
+               <div className="prose prose-invert prose-p:text-slate-300 prose-headings:text-slate-100 prose-a:text-blue-400 max-w-none whitespace-pre-wrap font-sans" style={{ lineHeight: '1.5rem' }}>
                  {testCases}
                </div>
              ) : (

@@ -7,7 +7,9 @@ export const TestCaseSchema = z.object({
   priority: z.enum(["High", "Medium", "Low"]),
   type: z.enum(["Functional", "Negative", "Boundary", "UI"]),
   preconditions: z.array(z.string()),
-  steps: z.array(z.string()),
+  setupSteps: z.array(z.string().describe("Actions that prepare the test environment before the behavior under test.")),
+  actionSteps: z.array(z.string().describe("Ordered test actions with separate, explicit Verify that... steps after important actions.")),
+  cleanupSteps: z.array(z.string().describe("Actions that safely restore or remove test data after the test.")),
   expectedResult: z.string(),
 });
 export type TestCase = z.infer<typeof TestCaseSchema>;

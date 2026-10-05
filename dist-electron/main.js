@@ -808,7 +808,9 @@ var TestCaseSchema = z.object({
 		"UI"
 	]),
 	preconditions: z.array(z.string()),
-	steps: z.array(z.string()),
+	setupSteps: z.array(z.string().describe("Actions that prepare the test environment before the behavior under test.")),
+	actionSteps: z.array(z.string().describe("Ordered test actions with separate, explicit Verify that... steps after important actions.")),
+	cleanupSteps: z.array(z.string().describe("Actions that safely restore or remove test data after the test.")),
 	expectedResult: z.string()
 });
 var GraphState = Annotation.Root({
@@ -823,18 +825,23 @@ var GraphState = Annotation.Root({
 //#endregion
 //#region electron/graph/nodes.ts
 var normalizeActions = async (s) => {
-	return { query: s.actions.map((a) => {
+	return { query: s.actions.map((a, index) => {
 		const detail = a.label || a.target || a.value || a.keyCombo || a.url || a.elementHint;
-		return `${a.type}${detail ? `: ${detail}` : ""}`;
-	}).join("; ") };
+		return `${index + 1}. ${a.type}${detail ? `: ${detail}` : ""}`;
+	}).join("\n") };
 };
 var makeRetrieve = (retriever) => async (s) => {
-	return { context: await retriever.search(s.query, 6) };
+	try {
+		return { context: await retriever.search(s.query, 6) };
+	} catch (error) {
+		console.error("Knowledge-base retrieval failed; continuing without context.", error);
+		return { context: [] };
+	}
 };
-var makeGenerate = (llm, contextPrompt) => async (s) => {
+var makeGenerate = (llm, contextPrompt, summary) => async (s) => {
 	const structured = llm.withStructuredOutput(z.object({ testCases: z.array(TestCaseSchema) }));
-	const system = "You are a senior QA engineer. Write complete, executable test cases from the recorded user actions. Use the reference context for style, naming and coverage ideas, but never invent UI elements that do not appear in the recorded steps." + (contextPrompt ? `\n\nAdditional context detail instructions:\n${contextPrompt}` : "");
-	const user = `Recorded steps:\n${s.query}\n\nReference context:\n${s.context.length ? s.context.join("\n---\n") : "(none)"}\n\n` + (s.critique ? `A reviewer found these problems. Fix them:\n${s.critique}\n` : "");
+	const system = "You are a senior QA engineer. Write complete, executable test cases from the recorded user actions. Put environment preparation and account/project creation in setupSteps, only the behavior being tested in actionSteps, and teardown or data deletion in cleanupSteps. Do not put all actions into one list. Keep preconditions limited to facts that must already be true before setup begins. In actionSteps, represent important actions and their checks as separate ordered strings: after each major state change, submission, connection, save, or sync, include a distinct step beginning with 'Verify that...' and name the observable expected state. Do not combine the action and its verification into one string, and do not invent UI elements or outcomes. Use the reference context for domain guidance, not as evidence that an unrecorded action occurred. Write each action step using the exact wording of the matching recorded action (button, field, menu and page names verbatim); the user's summary describes intent only and never replaces recorded actions." + (contextPrompt ? `\n\nAdditional context detail instructions:\n${contextPrompt}` : "");
+	const user = (summary ? `Test case summary from the user:\n${summary}\n\n` : "") + `Recorded steps:\n${s.query}\n\nReference context:\n${s.context.length ? s.context.join("\n---\n") : "(none)"}\n\n` + (s.critique ? `A reviewer found these problems. Fix them:\n${s.critique}\n` : "");
 	return {
 		testCases: (await structured.invoke([{
 			role: "system",
@@ -846,20 +853,18 @@ var makeGenerate = (llm, contextPrompt) => async (s) => {
 		iterations: (s.iterations ?? 0) + 1
 	};
 };
-var makeValidate = (judge) => async (s) => {
+var makeValidate = (judge, summary) => async (s) => {
 	const verdict = await judge.withStructuredOutput(z.object({
 		pass: z.boolean(),
 		critique: z.string()
-	})).invoke(`Review these test cases against the recorded steps. Check: (1) every recorded step is covered, (2) steps are accurate and in order, (3) nothing is invented, (4) expected results are specific.
-
-Recorded steps:\n${s.query}\n\nTest cases:\n${JSON.stringify(s.testCases, null, 2)}`);
+	})).invoke("Review these test cases against the recorded steps. Check: (1) setup, core actions, and cleanup are in their separate fields, (2) every recorded core action is covered and ordered, (3) important state changes, submissions, connections, saves, and syncs have a separate following actionSteps entry beginning 'Verify that...' with an observable result, (4) no action or outcome is invented, and (5) expected results are specific. If a verification is missing or a workflow is incorrectly grouped, fail and explain the correction.\n\n" + (summary ? `Test case summary from the user:\n${summary}\n\n` : "") + `Recorded steps:\n${s.query}\n\nTest cases:\n${JSON.stringify(s.testCases, null, 2)}`);
 	return { critique: verdict.pass ? "" : verdict.critique };
 };
 //#endregion
 //#region electron/graph/index.ts
 var MAX_ITERATIONS = 3;
 function buildGraph(deps) {
-	return new StateGraph(GraphState).addNode("normalize", normalizeActions).addNode("retrieve", deps.useRag ? makeRetrieve(deps.retriever) : async () => ({ context: [] })).addNode("generate", makeGenerate(deps.generator, deps.contextPrompt)).addNode("validate", makeValidate(deps.judge)).addEdge(START, "normalize").addEdge("normalize", "retrieve").addEdge("retrieve", "generate").addEdge("generate", "validate").addConditionalEdges("validate", (s) => s.critique && s.iterations < MAX_ITERATIONS ? "generate" : END).compile();
+	return new StateGraph(GraphState).addNode("normalize", normalizeActions).addNode("retrieve", deps.useRag ? makeRetrieve(deps.retriever) : async () => ({ context: [] })).addNode("generate", makeGenerate(deps.generator, deps.contextPrompt, deps.testCaseSummary)).addNode("validate", makeValidate(deps.judge, deps.testCaseSummary)).addEdge(START, "normalize").addEdge("normalize", "retrieve").addEdge("retrieve", "generate").addEdge("generate", "validate").addConditionalEdges("validate", (s) => s.critique && s.iterations < MAX_ITERATIONS ? "generate" : END).compile();
 }
 //#endregion
 //#region electron/graph/models.ts
@@ -867,11 +872,13 @@ function makeChatModel(provider, model, apiKey) {
 	return provider === "claude" ? new ChatAnthropic({
 		model,
 		apiKey,
-		temperature: .2
+		temperature: .2,
+		maxTokens: 8192
 	}) : new ChatGoogleGenerativeAI({
 		model,
 		apiKey,
-		temperature: .2
+		temperature: .2,
+		maxOutputTokens: 16384
 	});
 }
 //#endregion
@@ -1204,7 +1211,7 @@ function setupIpcHandlers(win) {
 		const judgeProvider = payload.judgeProvider ?? provider;
 		const contextPrompt = payload.useUploadedPrompt ? readContextPrompt()?.content : void 0;
 		if (payload.useUploadedPrompt && !contextPrompt) throw new Error("The uploaded context prompt is unavailable. Upload it again in Settings.");
-		const stream = await buildGraph({
+		const graph = buildGraph({
 			retriever: payload.useRag ? await getLanceRetriever() : {
 				ingest: async () => void 0,
 				search: async () => [],
@@ -1213,21 +1220,28 @@ function setupIpcHandlers(win) {
 			generator: makeChatModel(provider, payload.model, await getProviderApiKey(provider)),
 			judge: makeChatModel(judgeProvider, payload.judgeModel ?? payload.model, await getProviderApiKey(judgeProvider)),
 			useRag: payload.useRag ?? false,
-			contextPrompt
-		}).stream({
-			actions: payload.actions,
-			screenshots: payload.screenshots ?? [],
-			query: "",
-			context: [],
-			testCases: [],
-			critique: "",
-			iterations: 0
-		}, { streamMode: ["updates", "values"] });
-		let finalState;
-		for await (const [mode, data] of stream) if (mode === "updates") event.sender.send("testcases:progress", Object.keys(data)[0]);
-		else finalState = data;
-		if (!finalState?.testCases) throw new Error("The generation graph returned no test cases.");
-		return finalState.testCases;
+			contextPrompt,
+			testCaseSummary: typeof payload.testCaseSummary === "string" ? payload.testCaseSummary.slice(0, 2e3) : void 0
+		});
+		try {
+			const stream = await graph.stream({
+				actions: payload.actions,
+				screenshots: payload.screenshots ?? [],
+				query: "",
+				context: [],
+				testCases: [],
+				critique: "",
+				iterations: 0
+			}, { streamMode: ["updates", "values"] });
+			let finalState;
+			for await (const [mode, data] of stream) if (mode === "updates") event.sender.send("testcases:progress", Object.keys(data)[0]);
+			else finalState = data;
+			if (!finalState?.testCases?.length) throw new Error("The generation graph returned no test cases.");
+			return finalState.testCases;
+		} catch (error) {
+			console.error("LangGraph generation failed:", error);
+			throw error;
+		}
 	});
 	ipcMain.handle("kb:addFiles", async (event) => {
 		const options = {
