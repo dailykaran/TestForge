@@ -10,6 +10,8 @@ TestForge orchestrates Claude and Gemini APIs to function as **intelligent test 
 4. **Orchestrating** AI reasoning through structured workflows
 5. **Exporting** outputs to actionable test documentation
 
+On the `feature/langgraph_RAG` branch, generation can also run as a **LangGraph multi-step agent** (normalize → retrieve → generate → validate) with a separate judge model and a local RAG knowledge base. See [Phase 5b](#phase-5b-langgraph--rag-agent-workflow-featurelanggraph_rag).
+
 ---
 
 ## Detailed Data Flow Architecture
@@ -335,11 +337,13 @@ IMPORTANT:
 - Test the complete end-to-end workflow as ONE unified test case
 ```
 
-**Supported Gemini Models:**
-- `gemini-2.0-flash` - Fast, cost-effective responses
-- `gemini-3.1-flash-lite` - Lightweight, optimized variant
-- `gemini-3.1-pro` - Advanced reasoning capabilities
-- `gemini-3-pro` - Standard professional model
+**Supported Gemini Models (Settings lists):**
+- `gemini-2.5-flash` - Recommended default
+- `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.8-flash` - Fast variants
+- `gemini-3.1-flash-lite`, `gemini-2.5-flash-lite` - Lightweight variants
+- `gemini-3.1-pro-preview` - Advanced reasoning
+- `gemini-4-argon` - Added on this branch to both the generation and judge model lists
+- The older `gemini-1.5-*` and `gemini-2.0-flash` entries were removed from the generation list (`gemini-2.0-flash` remains in the Judge list)
 
 ---
 
@@ -397,6 +401,38 @@ IPC_CHANNELS = {
   'set-gemini-api-key': 'set-gemini-api-key',
 }
 ```
+
+The legacy `generate-test-cases` handler shown above is the direct path; it now also accepts `promptMode` and `useUploadedPrompt`. The LangGraph path uses separate channels registered in `ipcHandlers.ts` (`testcases:generate`, `testcases:progress`, `kb:*`, `context-prompt:*`) and exposed through `window.testforgeAI`.
+
+---
+
+### Phase 5b: LangGraph + RAG Agent Workflow (`feature/langgraph_RAG`)
+
+**Files**: `electron/graph/*`, `electron/rag/*`, `electron/ipcHandlers.ts`
+
+When the knowledge-base toggle is enabled, the Review page calls `testcases:generate` and the main process runs a LangGraph agent:
+
+```
+START → normalize → retrieve → generate → validate ─┐
+                                   ▲                │ critique and iterations < 3
+                                   └────────────────┘
+                                   (otherwise END)
+```
+
+| Node | Behavior |
+|---|---|
+| `normalize` | Turns recorded actions into numbered text steps (the search query) |
+| `retrieve` | Searches LanceDB for the top six chunks; errors are logged and generation continues with no context |
+| `generate` | Calls the generation model with structured output (Zod schema); includes optional context prompt, user summary, retrieved context, and prior critique |
+| `validate` | The judge model returns `{ pass, critique }`; a critique routes back to `generate` |
+
+**Structured output:** each case has `setupSteps`, `actionSteps` (with separate "Verify that..." steps), `cleanupSteps`, and `expectedResult`.
+
+**Knowledge base:** documents (`.md`/`.txt`/`.json`) are chunked (800/120), embedded with Gemini `gemini-embedding-001`, and stored in LanceDB at `userData/kb`. Approved cases can be ingested back via `kb:ingest-approved`.
+
+**Progress and fallback:** node names are streamed on `testcases:progress`; if the graph fails, the Review page shows the reason and falls back to the legacy generator.
+
+**Note:** screenshots are part of the request but are not sent to the model on this path.
 
 ---
 
@@ -460,7 +496,9 @@ export function exportToTxt(testCasesContent: string): Blob {
 | **Tool Integration** | Uses IPC to coordinate native capture, API calls, file export |
 | **Goal Orientation** | Specific prompts instruct AI to produce QA-formatted test cases |
 | **Context Awareness** | Understands workflow sequences and UI element relationships |
-| **Multimodal Processing** | Processes both text (action log) and images (screenshots) |
+| **Multimodal Processing** | Processes both text (action log) and images (screenshots) on the legacy path; the LangGraph path uses action text |
+| **Self-Critique** | A judge model reviews output and triggers up to three refinement passes (LangGraph path) |
+| **Retrieval / Memory** | LanceDB knowledge base supplies reference context and grows from approved test cases |
 
 ---
 
@@ -688,6 +726,10 @@ Test Type: [Functional / UI / Navigation / Regression / Workflow]
 | API Timeout | Respects max_tokens limit; client handles timeout |
 | Empty AI Response | Validates response content before returning |
 | Invalid Model Name | IPC handler checks against supported models |
+| Graph Failure | Review page reports the reason and falls back to the legacy generator |
+| KB Retrieval Failure | Logged; generation continues with empty context |
+| Missing Gemini Key for KB | Knowledge-base operations throw "Add a Gemini API key to use the knowledge base." |
+| Judge Never Passes | Loop stops after three generation passes and returns the latest cases |
 | File Read Failure | Path validation prevents directory traversal |
 
 ### Validation Chain
@@ -737,5 +779,6 @@ TestForge transforms AI-powered APIs into **functional AI agents** by:
 3. **Orchestrating** API calls through secure IPC channels
 4. **Processing outputs** into professional, standards-compliant deliverables
 5. **Maintaining context** through the entire workflow pipeline
+6. **Self-critiquing and retrieving** (LangGraph + RAG branch) through a judge model, refinement loop, and local knowledge base
 
 The agents act autonomously within their defined scope—analyzing user interactions and generating structured test documentation without human intervention during the generation phase. The modular architecture enables easy extension with new AI providers while maintaining clean separation between the UI, native functionality, and AI services.

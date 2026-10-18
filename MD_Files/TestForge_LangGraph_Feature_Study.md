@@ -1,8 +1,10 @@
 # TestForge - LangGraph Feature Branch Study
 
+> See also: [LANGGRAPH_RAG_BRANCH_IMPLEMENTATION.md](./LANGGRAPH_RAG_BRANCH_IMPLEMENTATION.md) for a concise implementation reference.
+
 ## 1. Executive Summary
 
-TestForge is an intelligent Electron desktop application that records user interactions and leverages AI to generate structured QA test cases. The `feature/langgraph` branch introduces a LangGraph-based agentic workflow for test case generation, enhanced RAG (Retrieval-Augmented Generation) capabilities, and a knowledge base system to improve generation quality through iterative refinement.
+TestForge is an intelligent Electron desktop application that records user interactions and leverages AI to generate structured QA test cases. The `feature/langgraph_RAG` branch introduces a LangGraph-based agentic workflow for test case generation, enhanced RAG (Retrieval-Augmented Generation) capabilities, and a knowledge base system to improve generation quality through iterative refinement.
 
 ### Key Enhancements on this Branch
 - **LangGraph Orchestration**: Multi-step agent workflow with validation and self-critique loops
@@ -355,6 +357,7 @@ New features:
 - **Knowledge Base Management**: Add documents, view count, clear KB
 - **Context Prompt Upload**: Upload `.md/.txt` custom prompt, view filename, clear
 - **Judge Model Selection**: Separate dropdown for `judgeModel`
+- **Model lists**: The deprecated "Google - Older" group (Gemini 1.5 Pro, 1.5 Flash, 2.0 Flash) was removed from the Default Generation Model list; `gemini-4-argon` was added to both the Default Generation Model and Judge Model lists
 - **RAG Toggle**: Enable/disable knowledge base retrieval
 - **API key validation**: Runtime validation for Gemini keys
 
@@ -421,7 +424,7 @@ The branch adds significant LangChain/LanceDB dependencies:
 
 Based on git history and codebase analysis:
 
-| Feature | Main/Legacy | feature/langgraph |
+| Feature | Main/Legacy | feature/langgraph_RAG |
 |---|---|---|
 | Generation Flow | Direct API calls (Claude/Gemini SDK) | LangGraph agent workflow with nodes (used when RAG on; legacy fallback on error) |
 | Validation | Basic prompt instructions | Separate judge model with critique loop (max 3 iterations) |
@@ -470,6 +473,6 @@ Based on git history and codebase analysis:
 
 ## 13. Conclusion
 
-The `feature/langgraph` branch represents a significant evolution of TestForge from a simple "prompt-and-generate" tool to an agentic test case generation system. The LangGraph orchestration provides structure, the judge model ensures quality through self-critique, and the RAG/KB system enables continuous improvement. The separation of setup/action/cleanup steps and enforcement of explicit verifications leads to more executable, higher-quality test cases.
+The `feature/langgraph_RAG` branch represents a significant evolution of TestForge from a simple "prompt-and-generate" tool to an agentic test case generation system. The LangGraph orchestration provides structure, the judge model ensures quality through self-critique, and the RAG/KB system enables continuous improvement. The separation of setup/action/cleanup steps and enforcement of explicit verifications leads to more executable, higher-quality test cases.
 
 The architecture is well-modularized with clear separation between graph logic, RAG layer, IPC, and UI. The streaming progress updates improve UX during generation. Overall, this branch delivers a more sophisticated and production-ready approach to AI-assisted test case generation.

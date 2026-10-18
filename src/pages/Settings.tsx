@@ -394,11 +394,7 @@ export default function Settings() {
                   <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
                   <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
                   <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                </optgroup>
-                <optgroup label="Google - Older">
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                  <option value="gemini-4-argon">Gemini 4 Argon</option>
                 </optgroup>
                 <optgroup label="Anthropic">
                   <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
@@ -424,6 +420,7 @@ export default function Settings() {
               <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
               <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
               <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+              <option value="gemini-4-argon">Gemini 4 Argon</option>
               <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
               <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
             </select>
