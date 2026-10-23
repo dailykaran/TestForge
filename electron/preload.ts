@@ -111,10 +111,6 @@ try {
         console.log('IPC auto-test: success');
         try { ipcRenderer.send('ipc-auto-test-result', { status: 'success' }); } catch (e) { console.warn('Failed to send ipc-auto-test-result success', e); }
 
-        // Close the window after a short delay so logs flush
-        setTimeout(() => {
-          try { (globalThis as any).window?.close?.(); } catch (e) { /* ignore */ }
-        }, 800);
       } catch (err) {
         console.error('IPC auto-test: failed', err);
         try { ipcRenderer.send('ipc-auto-test-result', { status: 'failure', message: String(err) }); } catch (e) { console.warn('Failed to send ipc-auto-test-result failure', e); }
@@ -124,3 +120,20 @@ try {
 } catch (err) {
   console.error('IPC auto-test bootstrap failed:', err);
 }
+
+contextBridge.exposeInMainWorld("testforgeAI", {
+  generate: (payload: unknown) => ipcRenderer.invoke("testcases:generate", payload),
+  onProgress: (cb: (node: string) => void) => {
+    const handler = (_e: unknown, node: string) => cb(node);
+    ipcRenderer.on("testcases:progress", handler);
+    return () => ipcRenderer.removeListener("testcases:progress", handler);
+  },
+  addKnowledgeFiles: () => ipcRenderer.invoke("kb:addFiles"),
+  knowledgeCount: () => ipcRenderer.invoke("kb:count"),
+  clearKnowledgeBase: () => ipcRenderer.invoke("kb:clear"),
+  ingestApprovedCases: (cases: unknown[], feature: string) => ipcRenderer.invoke("kb:ingest-approved", { cases, feature }),
+  getContextPromptInfo: () => ipcRenderer.invoke('context-prompt:get'),
+  uploadContextPrompt: () => ipcRenderer.invoke('context-prompt:upload'),
+  clearContextPrompt: () => ipcRenderer.invoke('context-prompt:clear'),
+});
+

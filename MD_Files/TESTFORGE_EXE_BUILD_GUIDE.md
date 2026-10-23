@@ -76,9 +76,15 @@ module.exports = {
   win: { target: 'nsis', icon: 'public/icons/icon.ico' },
   mac: { target: 'dmg', icon: 'public/icons/icon.icns' },
   linux: { target: 'AppImage' },
+  asarUnpack: [
+    '**/node_modules/@lancedb/**',
+    '**/node_modules/apache-arrow/**',
+  ],
   extraResources: ['resources/**'],
 };
 ```
+
+> The `asarUnpack` entries (added on `feature/langgraph_RAG`) keep the native LanceDB module and Apache Arrow outside the asar archive so the knowledge base works in packaged builds. Keep them when modifying this file.
 
 ### Configuration for Both Installer and Portable EXE
 
@@ -402,6 +408,7 @@ Fix the type error in the code and retry.
 4. Run in dev mode first: `npm run dev`
 5. Check that `dist/index.html` exists and is valid
 6. Ensure resources folder structure is correct
+7. If enabling the knowledge base fails only in the packaged app, confirm `asarUnpack` for `@lancedb` and `apache-arrow` is present in `electron-builder.config.js` and that `app.asar.unpacked/node_modules/@lancedb` exists in the build output
 
 ---
 

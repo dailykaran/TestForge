@@ -69,6 +69,24 @@ TestForge is an Electron-based desktop application that records user interaction
   - Priority classification
   - Test type classification
 
+### LangGraph and RAG Generation (`feature/langgraph_RAG`)
+- When the knowledge base (RAG) toggle is on, generation runs a LangGraph workflow in the main process: normalize recorded actions → retrieve reference context → generate → validate with a judge model
+- The judge can return critique, triggering regeneration; at most three generation passes run
+- Output is a Zod-validated structure: `id`, `title`, `priority`, `type`, `preconditions`, `setupSteps`, `actionSteps` (with separate "Verify that..." steps), `cleanupSteps`, `expectedResult`
+- The generator is instructed to follow recorded action wording and not to invent UI elements or outcomes
+- A separate **Judge Model** can be chosen, including a different provider than the generator
+- If the graph fails, the Review page reports the reason and falls back to the legacy generator
+
+### Knowledge Base
+- Local LanceDB table `knowledge_base` under `userData/kb`, embedded with Gemini `gemini-embedding-001`
+- Add `.md`, `.txt`, or `.json` documents (800-character chunks, 120 overlap), view the indexed chunk count, or clear the base
+- Top six matching chunks are supplied as reference context
+- Approved generated cases can be ingested for future retrieval
+
+### Context Prompt and Summary
+- Upload one `.md`/`.txt` context prompt (≤ 100 KB), stored as `context-detail-prompt.json`; appended to generation instructions in uploaded-prompt mode
+- An optional test case summary (truncated to 2000 characters) describes intent only; recorded actions remain authoritative
+
 ### Export Capability
 - Produces `.docx` documents using the `docx` library
 - Includes sections for test case metadata, steps, and screenshots
@@ -76,7 +94,10 @@ TestForge is an Electron-based desktop application that records user interaction
 
 ### Settings and Configuration
 - Allows entry of API keys for Claude and Gemini
-- Supports model selection and provider switching
+- Supports model selection and provider switching for both the default generation model and the judge model
+- Model lists: Gemini 2.5 Flash (recommended), 3.5 Flash, 3.5 Flash Lite, 3.8 Flash, 3.1 Pro Preview, 3.1 Flash Lite, 2.5 Flash Lite, and Gemini 4 Argon (`gemini-4-argon`); Claude 3.5 Sonnet and Haiku. The "Google - Older" group (Gemini 1.5/2.0) was removed from the generation list
+- RAG toggle, knowledge-base management, and context prompt upload
+- Persists `defaultModel`, `judgeModel`, and `useRag` locally
 - Maintains settings in local storage or secure local store
 
 ## 6. Technical Architecture
@@ -113,6 +134,8 @@ TestForge uses a split architecture common to Electron apps:
 - `electron/actionObserver.ts`: tracks and normalizes native user events
 - `electron/screenshotCapture.ts`: takes and stores screenshots on demand
 - `electron/pathValidator.ts`: validates file paths for saving exports or screenshots
+- `electron/graph/`: `state.ts`, `models.ts`, `nodes.ts`, `index.ts` — LangGraph workflow
+- `electron/rag/`: `lancedbRetriever.ts`, `embeddings.ts`, `ingest.ts`, `retriever.ts` — knowledge base
 
 ### Renderer Layer
 - `src/App.tsx`: root application component and routing
@@ -151,6 +174,11 @@ TestForge uses a split architecture common to Electron apps:
 - Includes atomic steps and expected outcomes
 - Provides a unified format that can be exported without manual re-editing
 
+### LangGraph Integration
+- Uses `@langchain/langgraph`, `@langchain/anthropic`, and `@langchain/google-genai` (`electron/graph/models.ts` builds the chat model with temperature 0.2)
+- Provider is inferred from the model ID prefix (`claude-` → Claude, otherwise Gemini)
+- Keys are read from the keychain in the main process; the renderer never sends them
+
 ## 9. Development and Build Requirements
 
 ### Required tools
@@ -182,6 +210,9 @@ TestForge uses a split architecture common to Electron apps:
 - Desktop action capture may vary across OS environments
 - `.docx` export may not preserve advanced formatting in all use cases
 - Requires valid API keys for AI generation
+- Knowledge-base embeddings always need a Gemini API key
+- Screenshots are not sent to the model on the LangGraph path
+- Graph refinement is capped at three passes, which bounds cost but may end with unresolved critique
 
 ## 12. Security Information
 
@@ -199,6 +230,8 @@ TestForge uses a split architecture common to Electron apps:
   - prevent directory traversal and unauthorized access
 - **Temporary recording data is sandboxed.** Screenshots, videos, and exported session artifacts are stored in `app.getPath('temp')/testforge` and are only accessible through validated app flows.
 - **AI generation occurs in the main process.** Recorded action data and screenshots are forwarded securely through provider SDKs from the main process, reducing risk exposure in the renderer.
+- **Knowledge-base and prompt data stay local.** The LanceDB store and uploaded context prompt live under Electron's `userData` directory. Document text is sent to Gemini for embedding, and retrieved chunks are sent to the selected generation and judge models. Prompt uploads are limited to 100 KB and `testcases:generate` summaries to 2000 characters.
+- **The `testforgeAI` bridge exposes only specific methods** rather than arbitrary IPC channels.
 - **Session data is transient.** In-browser `sessionStorage` is used only for session timing and does not persist test case or action data beyond the active app session.
 - **User control for sensitive data.** Users can clear stored API keys at any time, and the app is designed to keep sensitive configuration local rather than synced to external storage.
 - **Recommended security practices**

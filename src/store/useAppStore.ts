@@ -9,6 +9,10 @@ interface AppState {
   videoPath: string | null;
   selectedSourceId: string | null;
   defaultModel: string;
+  judgeModel: string;
+  useRag: boolean;
+  generationStep: string | null;
+  kbCount: number;
   audioEnabled: boolean;
   videoEnabled: boolean;
   setRoute: (route: 'dashboard' | 'setup' | 'recording' | 'review' | 'settings') => void;
@@ -17,6 +21,10 @@ interface AppState {
   setVideoPath: (path: string) => void;
   setSelectedSource: (id: string | null) => void;
   setDefaultModel: (model: string) => void;
+  setJudgeModel: (model: string) => void;
+  setUseRag: (enabled: boolean) => void;
+  setGenerationStep: (step: string | null) => void;
+  setKbCount: (count: number) => void;
   setAudioEnabled: (enabled: boolean) => void;
   setVideoEnabled: (enabled: boolean) => void;
   clearActions: () => void;
@@ -31,6 +39,10 @@ export const useAppStore = create<AppState>()(
       videoPath: null,
       selectedSourceId: null,
       defaultModel: 'gemini-2.5-flash',
+      judgeModel: 'gemini-2.5-flash',
+      useRag: false,
+      generationStep: null,
+      kbCount: 0,
       audioEnabled: true,
       videoEnabled: true,
       setRoute: (route) => set({ currentRoute: route }),
@@ -39,6 +51,10 @@ export const useAppStore = create<AppState>()(
       setVideoPath: (path) => set({ videoPath: path }),
       setSelectedSource: (id) => set({ selectedSourceId: id }),
       setDefaultModel: (model) => set({ defaultModel: model }),
+      setJudgeModel: (model) => set({ judgeModel: model }),
+      setUseRag: (enabled) => set({ useRag: enabled }),
+      setGenerationStep: (step) => set({ generationStep: step }),
+      setKbCount: (count) => set({ kbCount: count }),
       setAudioEnabled: (enabled) => set({ audioEnabled: enabled }),
       setVideoEnabled: (enabled) => set({ videoEnabled: enabled }),
       clearActions: () => set({ actions: [] })
@@ -47,7 +63,11 @@ export const useAppStore = create<AppState>()(
       name: 'testforge-app-store',
       partialize: (state) => ({
         defaultModel: state.defaultModel,
+        judgeModel: state.judgeModel,
+        useRag: state.useRag,
       }),
     }
   )
 );
+
+

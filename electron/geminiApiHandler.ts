@@ -57,7 +57,8 @@ export async function generateTestCasesWithGemini(
   actions: ActionEvent[],
   screenshots: string[],
   modelName: string = 'gemini-2.5-flash',
-  promptMode: 'detailed' | 'simple' = 'detailed'
+  promptMode: 'detailed' | 'simple' = 'detailed',
+  contextPrompt?: string
 ): Promise<string> {
   try {
     // Get API key securely from OS keychain
@@ -76,7 +77,7 @@ export async function generateTestCasesWithGemini(
     const genAI = new GoogleGenAI({ apiKey });
 
     const actionLog = formatActionsToText(actions);
-    const prompt = `${selectedPrompt}\n\nACTION LOG FROM RECORDING:\n${actionLog}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Do NOT include per-step 'Expected' or 'Visual Check' lines; provide a concise Expected summary at the end of the test case instead\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
+    const prompt = `${selectedPrompt}${contextPrompt ? `\n\nADDITIONAL CONTEXT DETAIL PROMPT:\n${contextPrompt}` : ''}\n\nACTION LOG FROM RECORDING:\n${actionLog}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Do NOT include per-step 'Expected' or 'Visual Check' lines; provide a concise Expected summary at the end of the test case instead\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
 
     // Build content parts array
     const contentParts: { text?: string; inlineData?: { data: string; mimeType: string } }[] = [

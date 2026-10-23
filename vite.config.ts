@@ -20,6 +20,10 @@ export default defineConfig({
                 // SDK packages
                 '@anthropic-ai/sdk',
                 '@google/genai',
+                /^@langchain\//,
+                'zod',
+                '@lancedb/lancedb',
+                'apache-arrow',
                 // Node.js built-in modules
                 'fs',
                 'path',

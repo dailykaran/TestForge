@@ -31,7 +31,8 @@ function formatActionsToText(actions: ActionEvent[]): string {
 export async function generateTestCasesWithClaude(
   actions: ActionEvent[],
   screenshots: string[],
-  modelName: string = 'claude-3-5-sonnet-20241022'
+  modelName: string = 'claude-3-5-sonnet-20241022',
+  contextPrompt?: string
 ): Promise<string> {
   try {
     // Get API key securely from OS keychain
@@ -60,7 +61,7 @@ export async function generateTestCasesWithClaude(
       }));
 
     const actionLog = formatActionsToText(actions);
-    const userPrompt = `ACTION LOG:\n${actionLog}\n\nGenerate complete test cases based on this session.`;
+    const userPrompt = `${contextPrompt ? `ADDITIONAL CONTEXT DETAIL PROMPT:\n${contextPrompt}\n\n` : ''}ACTION LOG:\n${actionLog}\n\nGenerate complete test cases based on this session.`;
 
     const response = await client.messages.create({
       model: modelName,
