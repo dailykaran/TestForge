@@ -12,6 +12,7 @@ import { makeChatModel } from "./graph/models";
 import { ingestApprovedCases, ingestFiles } from "./rag/ingest";
 import { LanceRetriever } from "./rag/lancedbRetriever";
 import { makeEmbeddings } from "./rag/embeddings";
+import { setupDeepEvalHandlers } from "./deepEval";
 
 let lanceRetrieverPromise: Promise<LanceRetriever> | undefined;
 
@@ -392,5 +393,5 @@ export function setupIpcHandlers(win: BrowserWindow) {
     return { cleared: true };
   });
 
-
+  setupDeepEvalHandlers();
 }

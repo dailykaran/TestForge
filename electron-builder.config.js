@@ -9,5 +9,8 @@ module.exports = {
     '**/node_modules/@lancedb/**',
     '**/node_modules/apache-arrow/**',
   ],
-  extraResources: ['resources/**'],
+  extraResources: [
+    'resources/**',
+    { from: 'eval', to: 'eval', filter: ['*.py', 'requirements.txt'] },
+  ],
 };

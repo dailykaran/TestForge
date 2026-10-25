@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { ArrowLeft, PlayCircle, Download, FileText, CheckCircle2, Wand2, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, PlayCircle, Download, FileText, CheckCircle2, Wand2, Image as ImageIcon, Gauge } from 'lucide-react';
 import { exportToDocx, exportToTxt } from '../services/exportService';
+import { DeepEvalDialog } from '../components/DeepEvalDialog';
 
 async function downloadScreenshotFile(screenshotPath: string, actionLabel: string) {
   try {
@@ -74,6 +75,7 @@ export default function Review() {
   const [resultMode, setResultMode] = useState<'detailed' | 'simple' | 'uploaded' | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isIngestingApproved, setIsIngestingApproved] = useState(false);
+  const [showDeepEval, setShowDeepEval] = useState(false);
   const [generationNotice, setGenerationNotice] = useState<string | null>(null);
   const [isSavingVideo, setIsSavingVideo] = useState(false);
   const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
@@ -307,14 +309,15 @@ export default function Review() {
 
   return (
     <div className="flex flex-col h-full bg-slate-900 overflow-y-auto w-full">
-      <header className="px-8 py-6 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-900/80 backdrop-blur-md z-10">
+      {showDeepEval && <DeepEvalDialog onClose={() => setShowDeepEval(false)} />}
+      <header className="px-8 py-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 sticky top-0 bg-slate-900/80 backdrop-blur-md z-10 [&_button]:whitespace-nowrap">
         <div className="flex items-center gap-4">
           <button onClick={handleDiscard} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
             <ArrowLeft className="w-6 h-6 text-slate-300" />
           </button>
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-100 to-slate-400">Review Session</h1>
+          <h1 className="text-2xl font-bold whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-slate-100 to-slate-400">Review Session</h1>
         </div>
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-wrap gap-3 items-center">
            <button 
             onClick={downloadVideo}
             disabled={!videoPath || isSavingVideo}
@@ -334,7 +337,7 @@ export default function Review() {
               value={promptMode}
               onChange={(e) => setPromptMode(e.target.value as 'detailed' | 'simple' | 'uploaded')}
               disabled={isGenerating}
-              className="bg-slate-800 text-slate-200 text-sm rounded-lg px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50 cursor-pointer"
+              className="bg-slate-800 text-slate-200 text-sm rounded-lg px-2 py-1 max-w-[16rem] border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50 cursor-pointer"
             >
               <option value="detailed">Detailed (Comprehensive)</option>
               <option value="simple">Simple (Lightweight)</option>
@@ -450,13 +453,13 @@ export default function Review() {
         </div>
 
         <div className="bg-slate-800/30 rounded-3xl border border-slate-700/50 flex flex-col overflow-hidden h-full min-h-[600px] shadow-2xl">
-           <div className="p-6 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/60 shrink-0">
-             <h2 className="text-xl font-semibold flex items-center gap-3">
+           <div className="p-6 border-b border-slate-700/50 flex flex-wrap items-center justify-between gap-3 bg-slate-800/60 shrink-0 [&_button]:whitespace-nowrap">
+             <h2 className="text-xl font-semibold flex items-center gap-3 whitespace-nowrap">
                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                Automated Test Cases
              </h2>
              {testCases && (
-               <div className="flex gap-2">
+               <div className="flex flex-wrap gap-2">
                 {resultMode === 'uploaded' && (
                 <button
                   onClick={handleApproveForKnowledgeBase}
@@ -468,6 +471,9 @@ export default function Review() {
                   {isIngestingApproved ? 'Adding...' : 'Approve for KB'}
                 </button>
                 )}
+                 <button onClick={() => setShowDeepEval(true)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-purple-400 transition-colors text-sm font-medium" title="Evaluate a test case .txt file with DeepEval">
+                   <Gauge className="w-4 h-4" /> Deep Eval
+                 </button>
                  <button onClick={handleExportDocx} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-blue-400 transition-colors text-sm font-medium">
                    <Download className="w-4 h-4" /> DOCX
                  </button>

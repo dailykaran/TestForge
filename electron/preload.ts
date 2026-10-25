@@ -136,5 +136,12 @@ contextBridge.exposeInMainWorld("testforgeAI", {
   getContextPromptInfo: () => ipcRenderer.invoke('context-prompt:get'),
   uploadContextPrompt: () => ipcRenderer.invoke('context-prompt:upload'),
   clearContextPrompt: () => ipcRenderer.invoke('context-prompt:clear'),
+  deepEval: {
+    check: () => ipcRenderer.invoke('deepeval:check'),
+    pickFile: (kind: string) => ipcRenderer.invoke('deepeval:pick-file', kind),
+    clearFile: (kind: string) => ipcRenderer.invoke('deepeval:clear-file', kind),
+    run: (req: unknown) => ipcRenderer.invoke('deepeval:run', req),
+    cancel: () => ipcRenderer.invoke('deepeval:cancel'),
+  },
 });
 

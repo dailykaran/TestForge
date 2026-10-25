@@ -15,6 +15,7 @@ import fs$1 from "node:fs/promises";
 import path$1 from "node:path";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import * as lancedb from "@lancedb/lancedb";
+import { spawn } from "child_process";
 //#region electron/pathValidator.ts
 /**
 * Path validation utility to prevent directory traversal and unauthorized file access
@@ -1343,6 +1344,153 @@ function makeEmbeddings(geminiApiKey) {
 	});
 }
 //#endregion
+//#region electron/deepEval.ts
+var MAX_FILE_BYTES = 2e5;
+var TIMEOUT_MS = 5 * 6e4;
+var METRICS = new Set([
+	"completeness",
+	"clarity",
+	"correctness",
+	"format",
+	"answer_relevancy",
+	"faithfulness",
+	"contextual_relevancy"
+]);
+var pickedPaths = /* @__PURE__ */ new Map();
+var activeRun = null;
+function evalDir() {
+	return app.isPackaged ? path.join(process.resourcesPath, "eval") : path.join(app.getAppPath(), "eval");
+}
+function pythonExecutable() {
+	if (process.env.TESTFORGE_PYTHON) return process.env.TESTFORGE_PYTHON;
+	const venvPython = process.platform === "win32" ? path.join(evalDir(), ".venv", "Scripts", "python.exe") : path.join(evalDir(), ".venv", "bin", "python");
+	if (fs.existsSync(venvPython)) return venvPython;
+	return process.platform === "win32" ? "python" : "python3";
+}
+function runPython(args, env = {}) {
+	return new Promise((resolve, reject) => {
+		const child = spawn(pythonExecutable(), ["run_eval.py", ...args], {
+			cwd: evalDir(),
+			env: {
+				...process.env,
+				...env,
+				PYTHONIOENCODING: "utf-8",
+				DEEPEVAL_TELEMETRY_OPT_OUT: "YES"
+			},
+			windowsHide: true
+		});
+		activeRun = child;
+		let stdout = "";
+		let stderr = "";
+		const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
+		child.stdout.on("data", (d) => {
+			stdout += d;
+		});
+		child.stderr.on("data", (d) => {
+			stderr += d;
+		});
+		child.on("error", (err) => {
+			clearTimeout(timer);
+			activeRun = null;
+			reject(err);
+		});
+		child.on("close", (code) => {
+			clearTimeout(timer);
+			if (activeRun === child) activeRun = null;
+			resolve({
+				stdout,
+				stderr,
+				code
+			});
+		});
+	});
+}
+function lastJsonLine(stdout) {
+	const lines = stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+	for (let i = lines.length - 1; i >= 0; i--) if (lines[i].startsWith("{")) return JSON.parse(lines[i]);
+	throw new Error("The evaluator returned no result.");
+}
+function resolvePicked(id) {
+	const p = typeof id === "string" ? pickedPaths.get(id) : void 0;
+	if (!p) throw new Error("Select the file again.");
+	return p;
+}
+function setupDeepEvalHandlers() {
+	ipcMain.handle("deepeval:check", async () => {
+		try {
+			const { stdout, stderr, code } = await runPython(["--check"]);
+			if (code !== 0) return {
+				ok: false,
+				message: stderr.trim().split("\n").pop() || "DeepEval is not installed."
+			};
+			return lastJsonLine(stdout);
+		} catch {
+			return {
+				ok: false,
+				message: "Python was not found. Install Python 3.9+ or set TESTFORGE_PYTHON."
+			};
+		}
+	});
+	ipcMain.handle("deepeval:pick-file", async (event, kind) => {
+		if (!["testcase", "context"].includes(kind)) throw new Error("Invalid file kind.");
+		const options = {
+			properties: ["openFile"],
+			filters: [{
+				name: "Text files",
+				extensions: ["txt"]
+			}]
+		};
+		const owner = BrowserWindow.fromWebContents(event.sender);
+		const res = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options);
+		const selected = res.filePaths[0];
+		if (res.canceled || !selected) return null;
+		const stat = fs.statSync(selected);
+		if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error("The file must be a .txt file of 200 KB or less.");
+		pickedPaths.set(kind, selected);
+		return {
+			name: path.basename(selected),
+			preview: fs.readFileSync(selected, "utf8")
+		};
+	});
+	ipcMain.handle("deepeval:run", async (_, req) => {
+		if (activeRun) throw new Error("An evaluation is already running.");
+		if (req?.provider !== "claude" && req?.provider !== "gemini") throw new Error("Invalid judge provider.");
+		const model = String(req.model ?? "").trim();
+		if (!/^[\w.\-:/]{1,100}$/.test(model)) throw new Error("Invalid judge model ID.");
+		const metrics = (req.metrics ?? []).filter((m) => METRICS.has(m));
+		if (metrics.length === 0) throw new Error("Select at least one metric.");
+		const threshold = Math.min(1, Math.max(0, Number(req.threshold) || .5));
+		const apiKey = req.provider === "claude" ? await getClaudeApiKey() : await getGeminiApiKey();
+		if (!apiKey) throw new Error(`Add a ${req.provider === "claude" ? "Claude" : "Gemini"} API key in Settings.`);
+		const args = [
+			"--file",
+			resolvePicked("testcase"),
+			"--provider",
+			req.provider,
+			"--model",
+			model,
+			"--metrics",
+			metrics.join(","),
+			"--threshold",
+			String(threshold)
+		];
+		if (req.hasContext) args.push("--context", resolvePicked("context"));
+		const summary = typeof req.summary === "string" ? req.summary.trim().slice(0, 1e3) : "";
+		if (summary) args.push("--input-text", summary);
+		const { stdout, stderr, code } = await runPython(args, req.provider === "claude" ? { ANTHROPIC_API_KEY: apiKey } : { GOOGLE_API_KEY: apiKey });
+		if (code !== 0) throw new Error(stderr.trim().split("\n").pop()?.replace(apiKey, "***") || "Evaluation failed or was cancelled.");
+		return lastJsonLine(stdout);
+	});
+	ipcMain.handle("deepeval:cancel", () => {
+		activeRun?.kill();
+		return { cancelled: true };
+	});
+	ipcMain.handle("deepeval:clear-file", (_, kind) => {
+		pickedPaths.delete(kind);
+		return true;
+	});
+}
+//#endregion
 //#region electron/ipcHandlers.ts
 var lanceRetrieverPromise;
 async function getLanceRetriever() {
@@ -1687,6 +1835,7 @@ function setupIpcHandlers(win) {
 		if (fs.existsSync(promptPath)) fs.unlinkSync(promptPath);
 		return { cleared: true };
 	});
+	setupDeepEvalHandlers();
 }
 //#endregion
 //#region electron/iconHelper.ts

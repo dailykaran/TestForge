@@ -11,6 +11,25 @@ declare global {
     expectedResult: string;
   }
 
+  interface DeepEvalMetricResult {
+    metric: string;
+    score?: number;
+    threshold?: number;
+    passed?: boolean;
+    reason?: string | null;
+    skipped?: string;
+    error?: string;
+  }
+
+  interface DeepEvalResult {
+    file: string;
+    provider: string;
+    model: string;
+    results: DeepEvalMetricResult[];
+    overallScore: number | null;
+    passed: boolean;
+  }
+
   interface Window {
     ipcRenderer: {
       invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
@@ -38,6 +57,20 @@ declare global {
       getContextPromptInfo: () => Promise<{ filename: string | null; exists: boolean }>;
       uploadContextPrompt: () => Promise<{ filename: string | null }>;
       clearContextPrompt: () => Promise<{ cleared: boolean }>;
+      deepEval: {
+        check: () => Promise<{ ok: boolean; deepeval?: string; message?: string }>;
+        pickFile: (kind: 'testcase' | 'context') => Promise<{ name: string; preview: string } | null>;
+        clearFile: (kind: 'testcase' | 'context') => Promise<boolean>;
+        run: (req: {
+          provider: 'claude' | 'gemini';
+          model: string;
+          metrics: string[];
+          threshold: number;
+          hasContext?: boolean;
+          summary?: string;
+        }) => Promise<DeepEvalResult>;
+        cancel: () => Promise<{ cancelled: boolean }>;
+      };
     };
   }
 }

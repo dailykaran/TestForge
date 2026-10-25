@@ -107,6 +107,13 @@ electron.contextBridge.exposeInMainWorld("testforgeAI", {
 	}),
 	getContextPromptInfo: () => electron.ipcRenderer.invoke("context-prompt:get"),
 	uploadContextPrompt: () => electron.ipcRenderer.invoke("context-prompt:upload"),
-	clearContextPrompt: () => electron.ipcRenderer.invoke("context-prompt:clear")
+	clearContextPrompt: () => electron.ipcRenderer.invoke("context-prompt:clear"),
+	deepEval: {
+		check: () => electron.ipcRenderer.invoke("deepeval:check"),
+		pickFile: (kind) => electron.ipcRenderer.invoke("deepeval:pick-file", kind),
+		clearFile: (kind) => electron.ipcRenderer.invoke("deepeval:clear-file", kind),
+		run: (req) => electron.ipcRenderer.invoke("deepeval:run", req),
+		cancel: () => electron.ipcRenderer.invoke("deepeval:cancel")
+	}
 });
 //#endregion
