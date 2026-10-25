@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { ActionEvent } from '../types.ts';
 import { gemini } from '../config/prompts';
+import { formatTestCaseText } from '../utils/formatTestCaseText.ts';
 
 // SYSTEM_PROMPT is now imported from src/config/prompts/gemini/simple.ts (lightweight version for browser)
 const SYSTEM_PROMPT = gemini.GEMINI_SIMPLE_PROMPT;
@@ -89,9 +90,8 @@ export async function generateTestCasesWithGemini(
       throw new Error('Empty response received from Gemini API');
     }
 
-    return text;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return formatTestCaseText(text);
+  } catch (error) {    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error(`Failed to generate test cases with Gemini: ${errorMessage}`, { cause: error });
   }
 }

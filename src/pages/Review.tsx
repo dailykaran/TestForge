@@ -67,11 +67,11 @@ async function loadScreenshotForPreview(screenshotPath: string, setImageUrl: (ur
 
 export default function Review() {
   const {
-    actions, videoPath, defaultModel, judgeModel, useRag, generationStep,
+    actions, videoPath, defaultModel, judgeModel, generationStep,
     setGenerationStep, setKbCount, setRoute, clearActions, setVideoPath,
   } = useAppStore();
   const [testCases, setTestCases] = useState<string>('');
-  const [generatedCases, setGeneratedCases] = useState<TestForgeTestCase[]>([]);
+  const [resultMode, setResultMode] = useState<'detailed' | 'simple' | 'uploaded' | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isIngestingApproved, setIsIngestingApproved] = useState(false);
   const [generationNotice, setGenerationNotice] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export default function Review() {
   const [promptMode, setPromptMode] = useState<'detailed' | 'simple' | 'uploaded'>('detailed');
   const [uploadedPromptName, setUploadedPromptName] = useState<string | null>(null);
   const [testCaseSummary, setTestCaseSummary] = useState('');
-  const showSummaryInput = useRag && promptMode === 'uploaded';
+  const showSummaryInput = promptMode === 'uploaded';
   const testCaseLineCount = testCases ? testCases.split('\n').length : 0;
 
   useEffect(() => {
@@ -182,7 +182,7 @@ export default function Review() {
     setIsGenerating(true);
     setGenerationNotice(null);
     setGenerationStep(null);
-    setGeneratedCases([]);
+    setResultMode(null);
     if (window.ipcRenderer) {
       window.ipcRenderer.send('set-generator-active', true);
     }
@@ -199,13 +199,13 @@ export default function Review() {
         }
       }
       
-      if (useRag) {
+      if (promptMode === 'uploaded') {
         let stopProgress: (() => void) | undefined;
         try {
           const provider = defaultModel.startsWith('claude-') ? 'claude' : 'gemini';
           const judgeProvider = judgeModel.startsWith('claude-') ? 'claude' : 'gemini';
           stopProgress = window.testforgeAI.onProgress(setGenerationStep);
-          const cases = await window.testforgeAI.generate({
+          const result = await window.testforgeAI.generate({
             actions,
             screenshots,
             provider,
@@ -213,54 +213,24 @@ export default function Review() {
             judgeProvider,
             judgeModel,
             useRag: true,
-            useUploadedPrompt: promptMode === 'uploaded',
-            testCaseSummary: promptMode === 'uploaded' ? testCaseSummary.trim() : undefined,
+            useUploadedPrompt: true,
+            testCaseSummary: testCaseSummary.trim(),
           });
-          setGeneratedCases(cases);
-          setTestCases(cases.map((testCase, index) => [
-            `Test Case ${index + 1}: ${testCase.title}`,
-            `ID: ${testCase.id}`,
-            `Priority: ${testCase.priority}`,
-            `Type: ${testCase.type}`,
-            `Preconditions: ${testCase.preconditions.length ? testCase.preconditions.join('; ') : 'None'}`,
-            'Setup Steps:',
-            ...(testCase.setupSteps.length
-              ? testCase.setupSteps.map((step, stepIndex) => `  ${stepIndex + 1}. ${step}`)
-              : ['  None']),
-            'Action Steps:',
-            ...(testCase.actionSteps.length
-              ? testCase.actionSteps.map((step, stepIndex) => `  ${stepIndex + 1}. ${step}`)
-              : ['  None']),
-            'Cleanup Steps:',
-            ...(testCase.cleanupSteps.length
-              ? testCase.cleanupSteps.map((step, stepIndex) => `  ${stepIndex + 1}. ${step}`)
-              : ['  None']),
-            `Expected Result: ${testCase.expectedResult}`,
-          ].join('\n')).join('\n\n'));
-        } catch (graphError) {
-          console.error('LangGraph generation failed; using the legacy generator.', graphError);
-          const reason = graphError instanceof Error ? graphError.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(graphError);
-          setGenerationNotice(`Graph generation failed (${reason.slice(0, 200)}). The standard generator was used instead.`);
-          const legacyResult = await window.ipcRenderer.invoke('generate-test-cases', {
-            actions,
-            screenshots,
-            modelName: defaultModel,
-            promptMode: promptMode === 'simple' ? 'simple' : 'detailed',
-            useUploadedPrompt: promptMode === 'uploaded',
-          });
-          setTestCases(legacyResult as string);
+          setTestCases(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+          setResultMode('uploaded');
         } finally {
           stopProgress?.();
         }
       } else {
+        // Simple/Detailed use the built-in prompts only: no knowledge base, no uploaded prompt.
         const legacyResult = await window.ipcRenderer.invoke('generate-test-cases', {
           actions,
           screenshots,
           modelName: defaultModel,
-          promptMode: promptMode === 'simple' ? 'simple' : 'detailed',
-          useUploadedPrompt: promptMode === 'uploaded',
+          promptMode,
         });
         setTestCases(legacyResult as string);
+        setResultMode(promptMode);
       }
     } catch (err: unknown) {
       alert("Error generating test cases: " + (err instanceof Error ? err.message : String(err)));
@@ -276,20 +246,7 @@ export default function Review() {
   const handleApproveForKnowledgeBase = async () => {
     setIsIngestingApproved(true);
     try {
-      const cases = generatedCases.length
-        ? generatedCases
-        : [{
-            id: `approved-${Date.now()}`,
-            title: 'Approved generated test cases',
-            priority: 'Medium' as const,
-            type: 'Functional' as const,
-            preconditions: [],
-            setupSteps: [],
-            actionSteps: [testCases],
-            cleanupSteps: [],
-            expectedResult: 'See approved generated test case content.',
-          }];
-      const result = await window.testforgeAI.ingestApprovedCases(cases, 'recorded-session');
+      const result = await window.testforgeAI.ingestApprovedCases([testCases], 'recorded-session');
       setKbCount(await window.testforgeAI.knowledgeCount());
       setGenerationNotice(`${result.added} approved test case${result.added === 1 ? '' : 's'} added to the knowledge base.`);
     } catch (error) {
@@ -500,15 +457,17 @@ export default function Review() {
              </h2>
              {testCases && (
                <div className="flex gap-2">
+                {resultMode === 'uploaded' && (
                 <button
                   onClick={handleApproveForKnowledgeBase}
                   disabled={isIngestingApproved}
                   className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-emerald-400 transition-colors text-sm font-medium disabled:opacity-50"
-                  title="Add these reviewed cases to the knowledge base"
+                  title="Add this reviewed test case to the knowledge base"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   {isIngestingApproved ? 'Adding...' : 'Approve for KB'}
                 </button>
+                )}
                  <button onClick={handleExportDocx} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-blue-400 transition-colors text-sm font-medium">
                    <Download className="w-4 h-4" /> DOCX
                  </button>

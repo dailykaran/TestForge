@@ -99,6 +99,7 @@ electron.contextBridge.exposeInMainWorld("testforgeAI", {
 	},
 	addKnowledgeFiles: () => electron.ipcRenderer.invoke("kb:addFiles"),
 	knowledgeCount: () => electron.ipcRenderer.invoke("kb:count"),
+	listKnowledgeChunks: () => electron.ipcRenderer.invoke("kb:list"),
 	clearKnowledgeBase: () => electron.ipcRenderer.invoke("kb:clear"),
 	ingestApprovedCases: (cases, feature) => electron.ipcRenderer.invoke("kb:ingest-approved", {
 		cases,

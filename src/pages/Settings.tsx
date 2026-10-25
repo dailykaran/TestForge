@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { ArrowLeft, Save, ShieldCheck, AlertCircle, CheckCircle, Loader, FilePlus2, Database, Trash2, Upload, FileText } from 'lucide-react';
+import { ArrowLeft, Save, ShieldCheck, AlertCircle, CheckCircle, Loader, FilePlus2, Database, Trash2, Upload, FileText, Layers } from 'lucide-react';
+import KnowledgeBaseViewer from '../components/KnowledgeBaseViewer';
 import { isValidApiKeyFormat, validateGeminiApiKeyAtRuntime } from '../utils/validation';
 
 export default function Settings() {
@@ -16,6 +17,7 @@ export default function Settings() {
   const [useRagInput, setUseRagInput] = useState(useRag);
   const [isAddingDocuments, setIsAddingDocuments] = useState(false);
   const [isClearingKnowledgeBase, setIsClearingKnowledgeBase] = useState(false);
+  const [showChunkViewer, setShowChunkViewer] = useState(false);
   const [contextPromptName, setContextPromptName] = useState<string | null>(null);
   const [isManagingContextPrompt, setIsManagingContextPrompt] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -459,6 +461,14 @@ export default function Settings() {
                 {isAddingDocuments ? 'Adding...' : 'Add documents'}
               </button>
               <button
+                onClick={() => setShowChunkViewer(true)}
+                disabled={kbCount === 0 || isAddingDocuments || isClearingKnowledgeBase}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-100 rounded-lg text-sm font-medium"
+              >
+                <Layers className="w-4 h-4" />
+                View chunks
+              </button>
+              <button
                 onClick={handleClearKnowledgeBase}
                 disabled={kbCount === 0 || isAddingDocuments || isClearingKnowledgeBase}
                 className="flex items-center gap-2 px-4 py-2 border border-red-500/40 text-red-300 hover:bg-red-950/40 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-medium"
@@ -518,6 +528,7 @@ export default function Settings() {
           </div>
         </section>
       </div>
+      {showChunkViewer && <KnowledgeBaseViewer onClose={() => setShowChunkViewer(false)} />}
     </div>
   );
 }

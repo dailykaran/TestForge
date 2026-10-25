@@ -23,6 +23,9 @@ export interface RecordedAction {
   keyCombo?: string;
   url?: string;
   elementHint?: string;
+  coordinates?: { x: number; y: number };
+  screenshotPath?: string;
+  windowTitle?: string;
   timestamp: number;
 }
 
@@ -34,6 +37,7 @@ export const GraphState = Annotation.Root({
   context: Annotation<string[]>(),
   testCases: Annotation<TestCase[]>(),
   critique: Annotation<string>(),
+  formattedText: Annotation<string>(),
   iterations: Annotation<number>(),
 });
 export type GraphStateType = typeof GraphState.State;

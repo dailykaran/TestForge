@@ -28,12 +28,13 @@ declare global {
         useRag: boolean;
         useUploadedPrompt?: boolean;
         testCaseSummary?: string;
-      }) => Promise<TestForgeTestCase[]>;
+      }) => Promise<TestForgeTestCase[] | string>;
       onProgress: (callback: (node: string) => void) => () => void;
       addKnowledgeFiles: () => Promise<{ added: number }>;
       knowledgeCount: () => Promise<number>;
+      listKnowledgeChunks: () => Promise<Array<{ id: number; text: string; source: string; feature: string }>>;
       clearKnowledgeBase: () => Promise<{ cleared: boolean }>;
-      ingestApprovedCases: (cases: TestForgeTestCase[], feature: string) => Promise<{ added: number }>;
+      ingestApprovedCases: (cases: Array<TestForgeTestCase | string>, feature: string) => Promise<{ added: number }>;
       getContextPromptInfo: () => Promise<{ filename: string | null; exists: boolean }>;
       uploadContextPrompt: () => Promise<{ filename: string | null }>;
       clearContextPrompt: () => Promise<{ cleared: boolean }>;

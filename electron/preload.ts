@@ -130,6 +130,7 @@ contextBridge.exposeInMainWorld("testforgeAI", {
   },
   addKnowledgeFiles: () => ipcRenderer.invoke("kb:addFiles"),
   knowledgeCount: () => ipcRenderer.invoke("kb:count"),
+  listKnowledgeChunks: () => ipcRenderer.invoke("kb:list"),
   clearKnowledgeBase: () => ipcRenderer.invoke("kb:clear"),
   ingestApprovedCases: (cases: unknown[], feature: string) => ipcRenderer.invoke("kb:ingest-approved", { cases, feature }),
   getContextPromptInfo: () => ipcRenderer.invoke('context-prompt:get'),

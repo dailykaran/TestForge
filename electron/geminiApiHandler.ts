@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { ActionEvent } from '../src/types';
 import { getGeminiApiKey } from './keyStore';
 import { gemini } from '../src/config/prompts';
+import { formatDetailedTestCase } from '../src/utils/formatDetailedTestCase';
 
 /**
  * Formats action events into a readable text log
@@ -77,7 +78,7 @@ export async function generateTestCasesWithGemini(
     const genAI = new GoogleGenAI({ apiKey });
 
     const actionLog = formatActionsToText(actions);
-    const prompt = `${selectedPrompt}${contextPrompt ? `\n\nADDITIONAL CONTEXT DETAIL PROMPT:\n${contextPrompt}` : ''}\n\nACTION LOG FROM RECORDING:\n${actionLog}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Do NOT include per-step 'Expected' or 'Visual Check' lines; provide a concise Expected summary at the end of the test case instead\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
+    const prompt = `${selectedPrompt}${contextPrompt ? `\n\nADDITIONAL CONTEXT DETAIL PROMPT:\n${contextPrompt}` : ''}\n\nACTION LOG FROM RECORDING:\n${actionLog}\n\nINSTRUCTIONS:\nAnalyze the screenshots to identify all UI elements and their exact text labels, and follow the test case format and rules defined above exactly.`;
 
     // Build content parts array
     const contentParts: { text?: string; inlineData?: { data: string; mimeType: string } }[] = [
@@ -136,7 +137,7 @@ export async function generateTestCasesWithGemini(
       response: text.substring(0, 500) + (text.length > 500 ? '...(truncated)' : ''),
     });
 
-    return text;
+    return promptMode === 'detailed' && !contextPrompt ? formatDetailedTestCase(text) : text;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     

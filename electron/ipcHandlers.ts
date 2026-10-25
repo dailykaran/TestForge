@@ -210,6 +210,7 @@ export function setupIpcHandlers(win: BrowserWindow) {
   ipcMain.handle(IPC_CHANNELS['set-gemini-api-key'], async (_, apiKey: string) => {
     try {
       await setGeminiApiKey(apiKey);
+      lanceRetrieverPromise = undefined;
       return { success: true, message: 'Gemini API key saved securely' };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -242,15 +243,14 @@ export function setupIpcHandlers(win: BrowserWindow) {
 
   // SECURITY: Test case generation moved to main process (away from browser context)
   ipcMain.handle(IPC_CHANNELS['generate-test-cases'], async (_, actionData: unknown) => {
-    const data = actionData as { actions: unknown; screenshots: unknown; modelName: string; promptMode?: 'detailed' | 'simple'; useUploadedPrompt?: boolean };
-    const { actions, screenshots, modelName, promptMode = 'detailed', useUploadedPrompt = false } = data;
-    const contextPrompt = useUploadedPrompt ? readContextPrompt()?.content : undefined;
-    if (useUploadedPrompt && !contextPrompt) throw new Error('The uploaded context prompt is unavailable. Upload it again in Settings.');
+    const data = actionData as { actions: unknown; screenshots: unknown; modelName: string; promptMode?: 'detailed' | 'simple' };
+    const { actions, screenshots, modelName, promptMode = 'detailed' } = data;
+    // The built-in Simple/Detailed prompts never use the uploaded prompt or the knowledge base.
     try {
       if (modelName && modelName.includes('gemini')) {
-        return await generateTestCasesWithGemini(actions as never, screenshots as never, modelName, promptMode, contextPrompt);
+        return await generateTestCasesWithGemini(actions as never, screenshots as never, modelName, promptMode);
       } else {
-        return await generateTestCasesWithClaude(actions as never, screenshots as never, modelName, contextPrompt);
+        return await generateTestCasesWithClaude(actions as never, screenshots as never, modelName);
       }
     } catch (error: unknown) {
       console.error('Error generating test cases:', error);
@@ -293,18 +293,15 @@ export function setupIpcHandlers(win: BrowserWindow) {
   }) => {
     const provider = payload.provider;
     const judgeProvider = payload.judgeProvider ?? provider;
-    const contextPrompt = payload.useUploadedPrompt ? readContextPrompt()?.content : undefined;
-    if (payload.useUploadedPrompt && !contextPrompt) throw new Error('The uploaded context prompt is unavailable. Upload it again in Settings.');
-    const retriever = payload.useRag ? await getLanceRetriever() : {
-      ingest: async () => undefined,
-      search: async () => [],
-      count: async () => 0,
-    };
+    const contextPrompt = readContextPrompt()?.content;
+    if (!payload.useUploadedPrompt) throw new Error('Knowledge-base generation is only available with the uploaded prompt.');
+    if (!contextPrompt) throw new Error('The uploaded context prompt is unavailable. Upload it again in Settings.');
+    const retriever = await getLanceRetriever();
     const graph = buildGraph({
       retriever,
       generator: makeChatModel(provider, payload.model, await getProviderApiKey(provider)),
       judge: makeChatModel(judgeProvider, payload.judgeModel ?? payload.model, await getProviderApiKey(judgeProvider)),
-      useRag: payload.useRag ?? false,
+      useRag: payload.useRag !== false,
       contextPrompt,
       testCaseSummary: typeof payload.testCaseSummary === 'string' ? payload.testCaseSummary.slice(0, 2000) : undefined,
     });
@@ -315,10 +312,14 @@ export function setupIpcHandlers(win: BrowserWindow) {
         { streamMode: ["updates", "values"] }
       );
 
-      let finalState: { testCases?: unknown[] } | undefined;
+      let finalState: { testCases?: unknown[]; formattedText?: string } | undefined;
       for await (const [mode, data] of stream) {
         if (mode === "updates") event.sender.send("testcases:progress", Object.keys(data as object)[0]);
-        else finalState = data as { testCases?: unknown[] };
+        else finalState = data as { testCases?: unknown[]; formattedText?: string };
+      }
+      if (contextPrompt) {
+        if (!finalState?.formattedText?.trim()) throw new Error('The generation graph returned no test cases.');
+        return finalState.formattedText;
       }
       if (!finalState?.testCases?.length) throw new Error('The generation graph returned no test cases.');
       return finalState.testCases;
@@ -342,6 +343,8 @@ export function setupIpcHandlers(win: BrowserWindow) {
   });
 
   ipcMain.handle("kb:count", async () => (await getLanceRetriever()).count());
+
+  ipcMain.handle("kb:list", async () => LanceRetriever.list(path.join(app.getPath('userData'), 'kb')));
 
   ipcMain.handle("kb:clear", async () => {
     await LanceRetriever.clear(path.join(app.getPath('userData'), 'kb'));

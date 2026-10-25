@@ -4,7 +4,7 @@ import type { Retriever } from "../rag/retriever";
 import { GraphState } from "./state";
 import { normalizeActions, makeRetrieve, makeGenerate, makeValidate } from "./nodes";
 
-const MAX_ITERATIONS = 3;
+const MAX_ITERATIONS = 4;
 
 export function buildGraph(deps: {
   retriever: Retriever;
@@ -16,15 +16,15 @@ export function buildGraph(deps: {
 }) {
   const g = new StateGraph(GraphState)
     .addNode("normalize", normalizeActions)
-    .addNode("retrieve", deps.useRag ? makeRetrieve(deps.retriever) : async () => ({ context: [] }))
+    .addNode("retrieve", deps.useRag ? makeRetrieve(deps.retriever, deps.testCaseSummary) : async () => ({ context: [] }))
     .addNode("generate", makeGenerate(deps.generator, deps.contextPrompt, deps.testCaseSummary))
-    .addNode("validate", makeValidate(deps.judge, deps.testCaseSummary))
+    .addNode("validate", makeValidate(deps.judge, deps.testCaseSummary, deps.contextPrompt))
     .addEdge(START, "normalize")
     .addEdge("normalize", "retrieve")
     .addEdge("retrieve", "generate")
     .addEdge("generate", "validate")
     .addConditionalEdges("validate", (s) =>
-      s.critique && s.iterations < MAX_ITERATIONS ? "generate" : END
+      s.critique && s.iterations < MAX_ITERATIONS ? (deps.useRag ? "retrieve" : "generate") : END
     );
 
   return g.compile();

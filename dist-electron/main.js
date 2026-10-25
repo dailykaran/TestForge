@@ -293,9 +293,9 @@ async function clearAllApiKeys() {
 var GEMINI_DETAILED_PROMPT = `
 You are a professional QA Engineer and Test Architect specializing in UI/UX testing and test automation.
 
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 CRITICAL REQUIREMENTS
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 PRIMARY OBJECTIVE: Generate ONLY ONE consolidated, comprehensive test case per video session that accurately represents the complete user workflow.
 
@@ -305,9 +305,9 @@ DO NOT generate:
 - Test steps when clicking STOP button
 - Assumptions beyond what was actually recorded
 
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 UI ELEMENT EXTRACTION - HIGHEST PRIORITY
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 1. EXACT TEXT MATCHING:
    - Capture VERBATIM all visible text on UI elements (button labels, input placeholders, menu items, error messages, validation text)
@@ -331,9 +331,9 @@ UI ELEMENT EXTRACTION - HIGHEST PRIORITY
    - Identify page/screen name where action occurs
    - Describe any loading states, progress indicators, or transitions
 
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 TEST CASE STRUCTURE - MANDATORY FORMAT
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 Test Case ID: TC_001
 Test Case Name: [Clear, specific workflow title - not generic]
@@ -341,10 +341,10 @@ Module / Feature: [Exact feature/module being tested]
 Description: [2-3 sentences on what this test validates]
 
 Preconditions:
-- [Initial application state required]
-- [Any required user roles or permissions]
-- [Required data or test environment setup]
-- [Prerequisites that must be met before test execution]
+• [Initial application state required]
+• [Any required user roles or permissions]
+• [Required data or test environment setup]
+• [Prerequisites that must be met before test execution]
 
 Test Steps - RECORDING FLOW CAPTURE (HIGHEST ACCURACY):
 
@@ -357,9 +357,17 @@ STEP GENERATION RULES:
    - DO NOT include the final STOP button click
 
 2. MANDATORY STEP STRUCTURE:
-   N. [ACTION STATEMENT with EXACT UI TEXT]. Verify: [OUTCOME/RESULT]
-   
-   Where [ACTION_TYPE] is one of:
+   Each step is TWO lines: the numbered action line, then its "Verify:" line on the NEXT line (indented 3 spaces).
+   N. [ACTION STATEMENT with EXACT UI TEXT].
+      Verify: [OUTCOME/RESULT]
+
+   ACTION WORDING (STRICT):
+   - Start every action with a natural sentence-case verb: Click, Enter, Select, Check, Press, Navigate to, Right-click, Double-click, Hover over, Scroll, Drag, Upload, Toggle, Expand, Collapse.
+   - NEVER write the action type in capital letters (no "CLICK", "KEYBOARD", "INPUT", "SELECT").
+   - Write keyboard actions as: Press the "Backspace" key. / Enter the text "latest QA build" in the verse text area.
+   - Put UI element text in double quotes. Do not use square brackets in the output.
+
+   The verb in the line above is chosen from this list of action types:
    - CLICK (for buttons, links, menu items)
    - INPUT (for text/number fields)
    - SELECT (for dropdowns, radio buttons)
@@ -387,169 +395,228 @@ STEP GENERATION RULES:
 3. UI ELEMENT TYPES - EXACT CAPTURE:
 
    BUTTONS:
-   N. Click the "[Exact Button Text]" [location if needed]. Verify: [What happens immediately]
-   Example: 1. Click the "Login" button (top-right corner). Verify: Login modal appears.
+   N. Click the "[Exact Button Text]" [location if needed].
+   Verify: [What happens immediately]
+   Example: 1. Click the "Login" button (top-right corner).
+   Verify: Login modal appears.
 
    TEXT/NUMBER INPUTS:
-   N. Click the "[Field Label]" field and enter "[EXACT_VALUE]". Verify: [Field shows value/validation]
-   Example: 2. Click the "Email" field and enter "user@example.com". Verify: Field is populated with the email address.
+   N. Click the "[Field Label]" field and enter "[EXACT_VALUE]".
+   Verify: [Field shows value/validation]
+   Example: 2. Click the "Email" field and enter "user@example.com".
+   Verify: Field is populated with the email address.
 
    DROPDOWNS/SELECTIONS:
-   N. Click the "[Dropdown Label]" dropdown and select "[Exact Option Text]". Verify: [Dropdown closes and shows selection]
-   Example: 3. Click the "Account Type" dropdown and select "Administrator". Verify: Selection displays in dropdown field.
+   N. Click the "[Dropdown Label]" dropdown and select "[Exact Option Text]".
+   Verify: [Dropdown closes and shows selection]
+   Example: 3. Click the "Account Type" dropdown and select "Administrator".
+   Verify: Selection displays in dropdown field.
 
    CHECKBOXES:
-   N. Click the "[Label Text]" checkbox to [Check/Uncheck]. Verify: [Related UI updates if applicable]
-   Example: 4. Click the "Remember me" checkbox to check it. Verify: Checkbox is marked with checkmark.
+   N. Click the "[Label Text]" checkbox to [Check/Uncheck].
+   Verify: [Related UI updates if applicable]
+   Example: 4. Click the "Remember me" checkbox to check it.
+   Verify: Checkbox is marked with checkmark.
 
    DIALOGS/MODALS:
-   N. Interact with the "[Dialog/Modal Title]" dialog. Verify: [Fields/buttons visible]
-   Example: 5. Interact with the "Confirm Action" dialog. Verify: Dialog contains "Yes", "No", "Cancel" buttons.
+   N. Interact with the "[Dialog/Modal Title]" dialog.
+   Verify: [Fields/buttons visible]
+   Example: 5. Interact with the "Confirm Action" dialog.
+   Verify: Dialog contains "Yes", "No", "Cancel" buttons.
 
    ERROR/INFO/WARNING MESSAGES:
-   N. View the "[EXACT Message Text]" [message type: error/info/warning/success] message. Verify: [Visible location/state]
-   Example: 6. View the "Invalid email format" error message. Verify: Red banner appears below the email field.
+   N. View the "[EXACT Message Text]" [message type: error/info/warning/success] message.
+   Verify: [Visible location/state]
+   Example: 6. View the "Invalid email format" error message.
+   Verify: Red banner appears below the email field.
 
    LISTS/MENU SELECTIONS:
-   N. Select "[Item Text]" from the "[List/Menu Name]" menu. Verify: [Item highlighted/selected]
-   Example: 7. Select "Report Generator" from the "Tools" menu. Verify: Menu item is highlighted.
+   N. Select "[Item Text]" from the "[List/Menu Name]" menu.
+   Verify: [Item highlighted/selected]
+   Example: 7. Select "Report Generator" from the "Tools" menu.
+   Verify: Menu item is highlighted.
 
    PAGE/TAB NAVIGATION:
-   N. Navigate to the "[Page/Tab Name]" page. Verify: [Page loads and displays content]
-   Example: 8. Navigate to the "Dashboard" page. Verify: Dashboard loads and displays welcome message.
+   N. Navigate to the "[Page/Tab Name]" page.
+   Verify: [Page loads and displays content]
+   Example: 8. Navigate to the "Dashboard" page.
+   Verify: Dashboard loads and displays welcome message.
 
    DOUBLE_CLICK:
-   N. Double-click on the "[Item/File Name]" item. Verify: [What opens/executes]
-   Example: 9. Double-click on the "report.pdf" file. Verify: PDF opens in the viewer.
+   N. Double-click on the "[Item/File Name]" item.
+   Verify: [What opens/executes]
+   Example: 9. Double-click on the "report.pdf" file.
+   Verify: PDF opens in the viewer.
 
    RIGHT_CLICK (CONTEXT MENUS):
-   N. Right-click on "[Element Text]" to open the context menu. Verify: [Options visible]
-   Example: 10. Right-click on "Document Name" to open the context menu. Verify: Menu shows "Edit", "Delete", "Share" options.
+   N. Right-click on "[Element Text]" to open the context menu.
+   Verify: [Options visible]
+   Example: 10. Right-click on "Document Name" to open the context menu.
+   Verify: Menu shows "Edit", "Delete", "Share" options.
 
    DRAG_DROP:
-   N. Drag "[Source Element]" and drop it onto the "[Target Location]". Verify: [Element repositioned]
-   Example: 11. Drag "Task Item #3" and drop it onto the "High Priority" column. Verify: Item is moved to the new column.
+   N. Drag "[Source Element]" and drop it onto the "[Target Location]".
+   Verify: [Element repositioned]
+   Example: 11. Drag "Task Item #3" and drop it onto the "High Priority" column.
+   Verify: Item is moved to the new column.
 
    UPLOAD:
-   N. Click the "[Upload Field Label]" field and select the file "[file_name.ext]". Verify: [File uploaded/confirmation]
-   Example: 12. Click the "Profile Picture" field and select the file "avatar.png". Verify: File is uploaded and preview displays.
+   N. Click the "[Upload Field Label]" field and select the file "[file_name.ext]".
+   Verify: [File uploaded/confirmation]
+   Example: 12. Click the "Profile Picture" field and select the file "avatar.png".
+   Verify: File is uploaded and preview displays.
 
    KEYBOARD:
-   N. Press the keyboard shortcut "[Key Combination]". Verify: [Action triggered/result]
-   Example: 13. Press the keyboard shortcut "Ctrl+S". Verify: File saves and success message appears.
+   N. Press the keyboard shortcut "[Key Combination]".
+   Verify: [Action triggered/result]
+   Example: 13. Press the keyboard shortcut "Ctrl+S".
+   Verify: File saves and success message appears.
 
    TOGGLE:
-   N. Toggle the "[Toggle Label]" switch to [On/Off]. Verify: [State change and related UI updates]
-   Example: 14. Toggle the "Dark Mode" switch to ON. Verify: Application background changes to dark theme.
+   N. Toggle the "[Toggle Label]" switch to [On/Off].
+   Verify: [State change and related UI updates]
+   Example: 14. Toggle the "Dark Mode" switch to ON.
+   Verify: Application background changes to dark theme.
 
    RANGE/SLIDER:
-   N. Adjust the "[Slider Label]" slider to "[value/position]". Verify: [Value updates and UI reflects change]
-   Example: 15. Adjust the "Volume" slider to "75%". Verify: Volume level displays as 75 and audio output changes.
+   N. Adjust the "[Slider Label]" slider to "[value/position]".
+   Verify: [Value updates and UI reflects change]
+   Example: 15. Adjust the "Volume" slider to "75%".
+   Verify: Volume level displays as 75 and audio output changes.
 
    DATE/TIME PICKER:
-   N. Click the "[Date Field Label]" field and select "[Date/Time]". Verify: [Field populated/calendar closes]
-   Example: 16. Click the "Start Date" field and select "May 27, 2026". Verify: Field displays the selected date.
+   N. Click the "[Date Field Label]" field and select "[Date/Time]".
+   Verify: [Field populated/calendar closes]
+   Example: 16. Click the "Start Date" field and select "May 27, 2026".
+   Verify: Field displays the selected date.
 
    MULTI_SELECT:
-   N. Select "[Item 1]", "[Item 2]", "[Item 3]" from the "[List/Dropdown]" list. Verify: [All items selected]
-   Example: 17. Select "Admin", "Editor", "Viewer" from the "User Roles" list. Verify: All three roles are highlighted with count showing "3 selected".
+   N. Select "[Item 1]", "[Item 2]", "[Item 3]" from the "[List/Dropdown]" list.
+   Verify: [All items selected]
+   Example: 17. Select "Admin", "Editor", "Viewer" from the "User Roles" list.
+   Verify: All three roles are highlighted with count showing "3 selected".
 
    SEARCH/FILTER:
-   N. Click the "[Search Field Label]" field and enter "[search term]". Verify: [Results filtered/updated]
-   Example: 18. Click the "Product Search" field and enter "laptop". Verify: Results display 12 matching products.
+   N. Click the "[Search Field Label]" field and enter "[search term]".
+   Verify: [Results filtered/updated]
+   Example: 18. Click the "Product Search" field and enter "laptop".
+   Verify: Results display 12 matching products.
 
    EXPAND:
-   N. Click to expand the "[Section/Item Name]" section. Verify: [Section expands and child items become visible]
-   Example: 19. Click to expand the "Advanced Settings" section. Verify: Settings options expand below the section header.
+   N. Click to expand the "[Section/Item Name]" section.
+   Verify: [Section expands and child items become visible]
+   Example: 19. Click to expand the "Advanced Settings" section.
+   Verify: Settings options expand below the section header.
 
    COLLAPSE:
-   N. Click to collapse the "[Section/Item Name]" section. Verify: [Section collapses and child items are hidden]
-   Example: 20. Click to collapse the "Advanced Settings" section. Verify: Settings options collapse and are no longer visible.
+   N. Click to collapse the "[Section/Item Name]" section.
+   Verify: [Section collapses and child items are hidden]
+   Example: 20. Click to collapse the "Advanced Settings" section.
+   Verify: Settings options collapse and are no longer visible.
 
    SORT:
-   N. Click the "[Column/Field Name]" column header to sort in [ascending/descending] order. Verify: [Data reorders accordingly]
-   Example: 21. Click the "Date Created" column header to sort in descending order. Verify: List reorders with newest items displayed first.
+   N. Click the "[Column/Field Name]" column header to sort in [ascending/descending] order.
+   Verify: [Data reorders accordingly]
+   Example: 21. Click the "Date Created" column header to sort in descending order.
+   Verify: List reorders with newest items displayed first.
 
 4. STATE TRANSITIONS - BEFORE & AFTER:
    Each step must capture what changed as a result of the action:
-   N. [ACTION STATEMENT with state details]. Verify: [State change from before to after]
+   N. [ACTION STATEMENT with state details].
+   Verify: [State change from before to after]
    
    Example:
-   5. Click the "Save" button (currently in enabled state). Verify: Button becomes disabled during processing, loading spinner appears, and success message "Record saved" displays.
+   5. Click the "Save" button (currently in enabled state).
+   Verify: Button becomes disabled during processing, loading spinner appears, and success message "Record saved" displays.
 
 5. EXACT USER INPUT VALUES:
    Capture every piece of user input data exactly as recorded:
-   N. Click the "[Field Name]" field and enter "[EXACT_TEXT_USED]". Verify: [Field displays the value]
+   N. Click the "[Field Name]" field and enter "[EXACT_TEXT_USED]".
+   Verify: [Field displays the value]
    
    Include: text, numbers, special characters, spaces, case sensitivity
    Example: 
-   - 2. Click the "Username" field and enter "qa_automation_001". Verify: Field displays the username.
-   - 3. Click the "Password" field and enter "Secure#Pass@123!". Verify: Field displays password characters securely.
-   - 4. Click the "Search box" field and enter "test case". Verify: Search results update with matching items.
+   - 2. Click the "Username" field and enter "qa_automation_001".
+   Verify: Field displays the username.
+   - 3. Click the "Password" field and enter "Secure#Pass@123!".
+   Verify: Field displays password characters securely.
+   - 4. Click the "Search box" field and enter "test case".
+   Verify: Search results update with matching items.
 
 6. VALIDATION & ERROR HANDLING:
    Document validation messages and error recovery steps:
-   N. View the "[Validation/Error Message Text]" message. Verify: [Where it appears and action user takes]
-   N+1. [CORRECTIVE_ACTION STATEMENT]. Verify: [User corrects/retries/recovers]
+   N. View the "[Validation/Error Message Text]" message.
+   Verify: [Where it appears and action user takes]
+   N+1. [CORRECTIVE_ACTION STATEMENT].
+   Verify: [User corrects/retries/recovers]
    
    Example:
-   - 7. View the "Username already exists" error message. Verify: Red error banner appears below the username field.
-   - 8. Click the "Username" field and enter "qa_automation_002". Verify: Error message clears and field is updated.
-   - 9. Click the "Submit" button. Verify: Form validates successfully and submission proceeds.
+   - 7. View the "Username already exists" error message.
+   Verify: Red error banner appears below the username field.
+   - 8. Click the "Username" field and enter "qa_automation_002".
+   Verify: Error message clears and field is updated.
+   - 9. Click the "Submit" button.
+   Verify: Form validates successfully and submission proceeds.
 
 7. CONDITIONAL UI & VISIBILITY:
    If UI elements appear conditionally based on selections:
-   N. [ACTION STATEMENT]. Verify: [Description of conditional UI appearance]
+   N. [ACTION STATEMENT].
+   Verify: [Description of conditional UI appearance]
    
    Example:
-   - 5. Click the "Enable Advanced Options" checkbox to check it. Verify: Advanced settings panel expands below the checkbox.
+   - 5. Click the "Enable Advanced Options" checkbox to check it.
+   Verify: Advanced settings panel expands below the checkbox.
 
 8. LOADING STATES & TRANSITIONS:
    If recording captures loading or page transitions:
-   N. View the "[Loading indicator/spinner]" loading state. Verify: [Data loads/processing occurs]
-   N+1. [NEXT_ACTION STATEMENT]. Verify: [New state after loading completes]
+   N. View the "[Loading indicator/spinner]" loading state.
+   Verify: [Data loads/processing occurs]
+   N+1. [NEXT_ACTION STATEMENT].
+   Verify: [New state after loading completes]
    
    Example:
-   - 6. View the loading spinner on the page. Verify: Page data begins loading.
-   - 7. Navigate to the "Results" tab. Verify: Results table loads and displays 25 records.
+   - 6. View the loading spinner on the page.
+   Verify: Page data begins loading.
+   - 7. Navigate to the "Results" tab.
+   Verify: Results table loads and displays 25 records.
 
 CRITICAL STEP ACCURACY REQUIREMENTS:
-✓ Total steps = Total recorded actions (clicks + inputs + selections + state views)
-✓ NO steps merged or combined
-✓ NO steps skipped or omitted
-✓ Steps in EXACT chronological order
-✓ Each step includes EXACT UI text verbatim from screenshots
-✓ Each step captures state changes (what's different after the action)
-✓ Specific data values (emails, usernames, text) captured exactly
-✓ All visible messages captured with exact text and type (error/info/warning/success)
-✓ Error handling and recovery documented completely
-✓ Exception: STOP button click excluded
+âœ“ Total steps = Total recorded actions (clicks + inputs + selections + state views)
+âœ“ NO steps merged or combined
+âœ“ NO steps skipped or omitted
+âœ“ Steps in EXACT chronological order
+âœ“ Each step includes EXACT UI text verbatim from screenshots
+âœ“ Each step captures state changes (what's different after the action)
+âœ“ Specific data values (emails, usernames, text) captured exactly
+âœ“ All visible messages captured with exact text and type (error/info/warning/success)
+âœ“ Error handling and recovery documented completely
+âœ“ Exception: STOP button click excluded
 
-Expected summary at end of test case:
-- [Clear, verifiable outcome with EXACT UI TEXT/values]
-- [Final state of application after all steps]
-- [Any confirmation messages or status indicators visible]
+Expected Summary:
+• [Clear, verifiable outcome with EXACT UI TEXT/values]
+• [Final state of application after all steps]
+• [Any confirmation messages or status indicators visible]
 
 Priority: [High / Medium / Low]
 Test Type: [Functional / UI / Integration / Workflow / Navigation]
 Test Data Required: [Specific values used - email format, numbers, etc.]
 Estimated Duration: [Time to execute manually - e.g., 5 minutes]
 
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 STEP QUALITY REQUIREMENTS
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-✓ Each step is ACTIONABLE - someone can execute without guessing
-✓ Each step includes EXACT UI TEXT from screenshots
-✓ Each step has CLEAR intended result or outcome implied by the action
-✓ No step is ambiguous or open to interpretation
-✓ No irrelevant information (timestamps, pixel coordinates unless critical)
-✓ All input values are captured (text entered, selections made)
-✓ All validation/error messages are exact replicas of screenshot text
+âœ“ Each step is ACTIONABLE - someone can execute without guessing
+âœ“ Each step includes EXACT UI TEXT from screenshots
+âœ“ Each step has CLEAR intended result or outcome implied by the action
+âœ“ No step is ambiguous or open to interpretation
+âœ“ No irrelevant information (timestamps, pixel coordinates unless critical)
+âœ“ All input values are captured (text entered, selections made)
+âœ“ All validation/error messages are exact replicas of screenshot text
 
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 WHAT CONSTITUTES "COMPLETE WORKFLOW"
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 - ALL user actions from start to finish of the recording
 - EVERY click, text input, navigation, and selection
@@ -558,9 +625,9 @@ WHAT CONSTITUTES "COMPLETE WORKFLOW"
 - FINAL state the user achieved at end of recording
 - Exception: DO NOT include STOP button click steps
 
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 EDGE CASES & ERROR HANDLING
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 If errors occur in the recording:
 - Include error message steps with EXACT error text
@@ -572,25 +639,25 @@ If form validation appears:
 - Include what field triggered the validation
 - Document the input that was rejected
 
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 OUTPUT QUALITY CHECKLIST
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 Before finalizing, verify:
-□ Exactly ONE test case (not multiple)
-□ All UI text is EXACT replicas from screenshots
-□ Every step is numbered and sequential
-□ Every step has EXACT text and a clear expected result or outcome
-□ Test data is specified (not generic placeholders)
-□ Preconditions are complete and specific
-□ Priority and Test Type are appropriate
-□ Total workflow is cohesive and testable
-□ STOP button actions are excluded
-□ Language is clear and professional
+â–¡ Exactly ONE test case (not multiple)
+â–¡ All UI text is EXACT replicas from screenshots
+â–¡ Every step is numbered and sequential
+â–¡ Every step has EXACT text and a clear expected result or outcome
+â–¡ Test data is specified (not generic placeholders)
+â–¡ Preconditions are complete and specific
+â–¡ Priority and Test Type are appropriate
+â–¡ Total workflow is cohesive and testable
+â–¡ STOP button actions are excluded
+â–¡ Language is clear and professional
 
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 IMPORTANT NOTES
-═══════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 - BE PRECISE: Use exact UI text, not paraphrasing or interpretation
 - BE SPECIFIC: Include details like field names, button labels, error messages
@@ -620,19 +687,37 @@ Your task: Analyze user interactions and screenshots to create a single, compreh
 EMPHASIS ON UI TEXT:
 - Extract and include EXACT UI element text from screenshots (button labels, field names, menu items, error messages, etc.)
 - When referencing UI elements in test steps, include the exact text visible on the element
-- Format: "Click on [EXACT_UI_TEXT]" or "Verify [EXACT_UI_TEXT] is displayed"
+- Format: Click on the "Exact Button Text" button, or Verify that the "Exact Text" message is displayed
 - Identify all input fields, buttons, dropdowns, links, and their labels
 - Include any validation messages, error messages, or confirmation texts
 
-Test Case Format:
-- Test Case ID: TC_001
-- Test Case Name: [Single, comprehensive workflow name]
-- Module / Feature: [Main feature being tested]
-- Preconditions: [Initial state required]
-- Test Steps: [Numbered, atomic steps with EXACT UI TEXT]
-- Expected Results: [Clear, verifiable outcomes with UI TEXT verification]
-- Priority: [High / Medium / Low]
-- Test Type: [Functional / UI / Integration / Workflow]
+OUTPUT FORMATTING RULES (STRICT):
+- Output plain text only. Do NOT use Markdown: no #, ##, *, **, backticks, or tables.
+- Do NOT start any line with a hyphen (-), asterisk (*), bullet (•) or hash (#).
+- Never wrap text in square brackets [ ]. Write real values directly. Put UI element text in double quotes.
+- Each section heading is on its own line, ends with a colon, and is followed by its content on the next lines.
+- Leave exactly one blank line between sections.
+- Number steps as "1.", "2.", "3." with one action per line. List preconditions and expected results as numbered lines too.
+- Keep short fields (ID, Name, Module, Priority, Type) as "Label: value" on one line each.
+
+Output exactly this layout, replacing the descriptions with real content:
+
+Test Case ID: TC_001
+Test Case Name: a single comprehensive workflow name
+Module / Feature: the main feature being tested
+
+Preconditions:
+1. the initial state required
+
+Test Steps:
+1. Click on the "Exact Button Text" button
+2. Verify that the "Exact Text" page is displayed
+
+Expected Results:
+1. a clear, verifiable outcome including the exact UI text
+
+Priority: High, Medium or Low
+Test Type: Functional, UI, Integration or Workflow
 
 IMPORTANT: 
 - Each step must reference actual UI text from the application
@@ -664,6 +749,120 @@ Each test case must follow this structure:
 - Priority: [High / Medium / Low]
 - Test Type: [Functional / UI / Navigation / Regression]
 `;
+//#endregion
+//#region src/utils/formatDetailedTestCase.ts
+var HEADING_LINE = new RegExp(`^(${[
+	"Test Case ID",
+	"Test Case Name",
+	"Module / Feature",
+	"Description",
+	"Preconditions",
+	"Test Steps",
+	"Expected Summary",
+	"Expected Results",
+	"Priority",
+	"Test Type",
+	"Test Data Required",
+	"Estimated Duration"
+].map((h) => h.replace(/\//g, "\\/")).join("|")})\\b[^:\\n]*:`, "i");
+var BULLET_SECTIONS = new Set([
+	"preconditions",
+	"expected summary",
+	"expected results"
+]);
+var VERBS = {
+	CLICK: "Click",
+	DOUBLE_CLICK: "Double-click",
+	RIGHT_CLICK: "Right-click",
+	INPUT: "Enter",
+	ENTER: "Enter",
+	TYPE: "Enter",
+	SELECT: "Select",
+	CHECK: "Check",
+	UNCHECK: "Uncheck",
+	INTERACT: "Interact with",
+	VIEW: "View",
+	NAVIGATE: "Navigate",
+	SCROLL: "Scroll",
+	DRAG_DROP: "Drag and drop",
+	UPLOAD: "Upload",
+	KEYBOARD: "Press",
+	TOGGLE: "Toggle",
+	RANGE: "Adjust",
+	DATE_PICK: "Select",
+	MULTI_SELECT: "Select",
+	SEARCH: "Search",
+	EXPAND: "Expand",
+	COLLAPSE: "Collapse",
+	SORT: "Sort",
+	COPY: "Copy",
+	PASTE: "Paste",
+	PRESS: "Press",
+	HOVER: "Hover",
+	OPEN: "Open",
+	CLOSE: "Close"
+};
+function normalizeAction(action) {
+	const m = /^([A-Za-z_]+)\b\s*(.*)$/.exec(action);
+	if (!m) return action;
+	const word = m[1];
+	let rest = m[2];
+	const upper = word.toUpperCase();
+	if (word !== upper && word !== word.toLowerCase()) return action;
+	let verb = VERBS[upper] ?? (word === upper ? word[0] + word.slice(1).toLowerCase() : word[0].toUpperCase() + word.slice(1));
+	if (upper === "KEYBOARD") rest = rest.replace(/^(?:press|type)\s+/i, "");
+	if (upper === "NAVIGATE" && /^to\b/i.test(rest)) verb = "Navigate";
+	return `${verb}${rest ? " " + rest : ""}`.replace(/\s+\.$/, ".");
+}
+function formatDetailedTestCase(raw) {
+	const lines = raw.replace(/\r\n/g, "\n").replace(/```[a-z]*\n?/gi, "").split("\n").map((l) => l.replace(/\*\*|__|`/g, "").trimEnd());
+	const out = [];
+	let section = "";
+	let inBlock = false;
+	const push = (line) => out.push(line);
+	const blank = () => {
+		if (out.length && out[out.length - 1] !== "") out.push("");
+	};
+	for (const original of lines) {
+		const line = original.trim();
+		if (!line) continue;
+		const heading = HEADING_LINE.exec(line);
+		if (heading) {
+			section = heading[1].toLowerCase();
+			const colon = line.indexOf(":");
+			const label = line.slice(0, colon).trim();
+			const value = line.slice(colon + 1).trim();
+			const isBlock = BULLET_SECTIONS.has(section) || section === "test steps";
+			if (isBlock || inBlock) blank();
+			inBlock = isBlock;
+			push(value ? `${label}: ${value}` : `${label}:`);
+			continue;
+		}
+		if (section === "test steps") {
+			const m = /^(\d+)[.)]\s*(.*)$/.exec(line);
+			if (m) {
+				const [action, ...verifyParts] = m[2].split(/\.?\s*\bVerify\s*:\s*/i);
+				const verify = verifyParts.join(" ").trim();
+				const cleaned = normalizeAction(action.trim().replace(/\.$/, ""));
+				blank();
+				push(`${m[1]}. ${cleaned}.`);
+				if (verify) push(`   Verify: ${verify.replace(/^[a-z]/, (c) => c.toUpperCase())}`);
+				continue;
+			}
+			const v = /^Verify\s*:\s*(.*)$/i.exec(line);
+			if (v) {
+				push(`   Verify: ${v[1]}`);
+				continue;
+			}
+		}
+		if (BULLET_SECTIONS.has(section)) {
+			push(`• ${line.replace(/^(?:[-*•]|\u2022)\s*/, "")}`);
+			continue;
+		}
+		push(line);
+	}
+	return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
 //#endregion
 //#region electron/geminiApiHandler.ts
 /**
@@ -704,7 +903,7 @@ async function generateTestCasesWithGemini(actions, screenshots, modelName = "ge
 		const selectedPrompt = promptMode === "simple" ? GEMINI_SIMPLE_PROMPT : GEMINI_DETAILED_PROMPT;
 		const genAI = new GoogleGenAI({ apiKey });
 		const actionLog = formatActionsToText$1(actions);
-		const prompt = `${selectedPrompt}${contextPrompt ? `\n\nADDITIONAL CONTEXT DETAIL PROMPT:\n${contextPrompt}` : ""}\n\nACTION LOG FROM RECORDING:\n${actionLog}\n\nINSTRUCTIONS:\n1. Analyze the screenshots provided to identify all UI elements and their exact text labels\n2. Create ONE single test case that represents the complete workflow shown in this session\n3. In each test step, reference the EXACT UI text for buttons, fields, menus, and messages\n4. Do NOT include per-step 'Expected' or 'Visual Check' lines; provide a concise Expected summary at the end of the test case instead\n5. Do NOT generate multiple test cases - generate only ONE consolidated test case`;
+		const prompt = `${selectedPrompt}${contextPrompt ? `\n\nADDITIONAL CONTEXT DETAIL PROMPT:\n${contextPrompt}` : ""}\n\nACTION LOG FROM RECORDING:\n${actionLog}\n\nINSTRUCTIONS:\nAnalyze the screenshots to identify all UI elements and their exact text labels, and follow the test case format and rules defined above exactly.`;
 		const contentParts = [{ text: prompt }];
 		const validScreenshots = screenshots.filter((b64) => b64?.trim());
 		if (validScreenshots.length > 0) validScreenshots.forEach((b64) => {
@@ -732,7 +931,7 @@ async function generateTestCasesWithGemini(actions, screenshots, modelName = "ge
 			model: modelName,
 			response: text.substring(0, 500) + (text.length > 500 ? "...(truncated)" : "")
 		});
-		return text;
+		return promptMode === "detailed" && !contextPrompt ? formatDetailedTestCase(text) : text;
 	} catch (error) {
 		logGeminiInteraction("output", { error: error instanceof Error ? error.message : "Unknown error occurred" });
 		if (error instanceof Error) throw new Error(`Failed to generate test cases with Gemini: ${error.message}`, { cause: error });
@@ -820,27 +1019,92 @@ var GraphState = Annotation.Root({
 	context: Annotation(),
 	testCases: Annotation(),
 	critique: Annotation(),
+	formattedText: Annotation(),
 	iterations: Annotation()
 });
 //#endregion
 //#region electron/graph/nodes.ts
 var normalizeActions = async (s) => {
 	return { query: s.actions.map((a, index) => {
-		const detail = a.label || a.target || a.value || a.keyCombo || a.url || a.elementHint;
-		return `${index + 1}. ${a.type}${detail ? `: ${detail}` : ""}`;
+		const detail = [
+			a.label,
+			a.target,
+			a.value,
+			a.keyCombo && `key ${a.keyCombo}`,
+			a.url,
+			a.elementHint
+		].filter(Boolean).join(" | ");
+		const extras = [a.coordinates ? `at (${a.coordinates.x},${a.coordinates.y})` : "", a.windowTitle ? `window "${a.windowTitle}"` : ""].filter(Boolean).join(", ");
+		return `${index + 1}. ${a.type}${detail ? `: ${detail}` : ""}${extras ? ` (${extras})` : ""}`;
 	}).join("\n") };
 };
-var makeRetrieve = (retriever) => async (s) => {
+var GENERIC_LABEL = /^(mouse click|key press|click|key|scroll)$/i;
+function meaningfulQuery(s, summary) {
+	const terms = /* @__PURE__ */ new Set();
+	for (const a of s.actions ?? []) for (const part of [
+		a.label,
+		a.target,
+		a.value,
+		a.url,
+		a.elementHint,
+		a.windowTitle
+	]) {
+		const t = part?.trim();
+		if (t && !GENERIC_LABEL.test(t)) terms.add(t.slice(0, 120));
+	}
+	const queries = [];
+	if (summary?.trim()) queries.push(summary.trim(), `${summary.trim()}\nprerequisites, preconditions, setup and cleanup`);
+	if (terms.size) queries.push([...terms].slice(0, 40).join("; "));
+	if (s.critique?.trim()) queries.push(`${summary ?? ""}\n${s.critique.trim()}`.slice(0, 1500));
+	if (!queries.length) queries.push(s.query);
+	return queries;
+}
+var makeRetrieve = (retriever, summary) => async (s) => {
 	try {
-		return { context: await retriever.search(s.query, 6) };
+		const seen = new Set(s.context ?? []);
+		const merged = [...seen];
+		for (const q of meaningfulQuery(s, summary)) for (const hit of await retriever.search(q, 6)) if (!seen.has(hit)) {
+			seen.add(hit);
+			merged.push(hit);
+		}
+		const context = merged.slice(0, 10);
+		console.log(`[RAG] retrieved ${context.length} chunk(s) from knowledge base.`);
+		return { context };
 	} catch (error) {
 		console.error("Knowledge-base retrieval failed; continuing without context.", error);
-		return { context: [] };
+		return { context: s.context ?? [] };
 	}
 };
 var makeGenerate = (llm, contextPrompt, summary) => async (s) => {
+	const images = (s.screenshots ?? []).filter((b) => b?.trim()).slice(0, 20).map((b) => ({
+		type: "image_url",
+		image_url: { url: `data:image/png;base64,${b}` }
+	}));
+	if (contextPrompt) {
+		const system = `You generate test cases from a recorded user session. The UPLOADED PROMPT below is the sole authority: obey EVERY instruction, rule, constraint, section heading, structure, numbering, pattern and worked example in it, including its number-of-test-cases rules, wording style and level of detail. Mirror its example test case exactly in layout and depth, and output only what that format allows (no preamble or commentary). Headings the prompt frames between double lines are mandatory sections; do not skip, rename or reorder them.
+Facts to use: the recorded steps, the attached screenshots, and the reference context from the knowledge base. The knowledge-base reference context contains real, reviewed test cases and domain steps: when it covers the same feature or flow, REUSE its concrete steps, exact UI text, dialog names, preparation and teardown flows and verification wording, and match the depth and number of steps of the prompt's example test case (detailed, one action per step, explicit verification steps). The knowledge base may be empty or may not cover this flow; then rely on the uploaded prompt itself (its rules, scenario patterns and reference example). If the prompt defines a placeholder for unknown UI text, use it ONLY when the text appears in neither the knowledge base nor the screenshots; always prefer the exact text from them. Parts of the recording (such as environment preparation or teardown) may be absent: follow the prompt's own rules about which section each kind of content belongs in, and write EVERY section the prompt defines in full, elaborated detail at the depth and step count of its reference example (one action per line, explicit verification lines, exact UI text). Do not add or skip sections against the prompt's rules. Only content describing the tested behavior is limited to recorded actions. Use exactly the output layout the prompt defines (section order, headings, fields) and nothing else. Recorded clicks and key presses are generic ("Mouse Click", "Key Press"): never copy those labels; use the screenshots and coordinates to name the real UI element with its exact UI text. Never mention screenshot numbers or write references like '(screenshot #2)'.
+
+=== UPLOADED PROMPT START ===\n${contextPrompt}\n=== UPLOADED PROMPT END ===`;
+		const user = (summary ? `Test case summary from the user:\n${summary}\n\n` : "") + `Recorded steps:\n${s.query}\n\nReference context (knowledge base):\n${s.context.length ? s.context.join("\n---\n") : "(none)"}\n\n` + (s.critique ? `Your previous output:\n${s.formattedText}\n\nA compliance reviewer found these violations of the uploaded prompt. Rewrite the full output and fix all of them:\n${s.critique}\n` : "");
+		const res = await llm.invoke([{
+			role: "system",
+			content: system
+		}, {
+			role: "user",
+			content: [{
+				type: "text",
+				text: user
+			}, ...images]
+		}]);
+		const text = typeof res.content === "string" ? res.content : res.content.map((p) => "text" in p && typeof p.text === "string" ? p.text : "").join("");
+		if (!text.trim()) throw new Error("The model returned an empty test case.");
+		return {
+			formattedText: text.trim(),
+			iterations: (s.iterations ?? 0) + 1
+		};
+	}
 	const structured = llm.withStructuredOutput(z.object({ testCases: z.array(TestCaseSchema) }));
-	const system = "You are a senior QA engineer. Write complete, executable test cases from the recorded user actions. Put environment preparation and account/project creation in setupSteps, only the behavior being tested in actionSteps, and teardown or data deletion in cleanupSteps. Do not put all actions into one list. Keep preconditions limited to facts that must already be true before setup begins. In actionSteps, represent important actions and their checks as separate ordered strings: after each major state change, submission, connection, save, or sync, include a distinct step beginning with 'Verify that...' and name the observable expected state. Do not combine the action and its verification into one string, and do not invent UI elements or outcomes. Use the reference context for domain guidance, not as evidence that an unrecorded action occurred. Write each action step using the exact wording of the matching recorded action (button, field, menu and page names verbatim); the user's summary describes intent only and never replaces recorded actions." + (contextPrompt ? `\n\nAdditional context detail instructions:\n${contextPrompt}` : "");
+	const system = "You are a senior QA engineer. Write complete, executable test cases from the recorded user actions. Put environment preparation and account/project creation in setupSteps, only the behavior being tested in actionSteps, and teardown or data deletion in cleanupSteps. Do not put all actions into one list. Keep preconditions limited to facts that must already be true before setup begins. In actionSteps, represent important actions and their checks as separate ordered strings: after each major state change, submission, connection, save, or sync, include a distinct step beginning with 'Verify that...' and name the observable expected state. Do not combine the action and its verification into one string, and do not invent UI elements or outcomes. Use the reference context for domain guidance, not as evidence that an unrecorded action occurred. Write each action step using the exact wording of the matching recorded action (button, field, menu and page names verbatim); the user's summary describes intent only and never replaces recorded actions. Recorded mouse clicks and key presses are generic (\"Mouse Click\", \"Key Press\"): never copy those labels as steps. Use the attached screenshots and click coordinates to identify the actual UI element clicked or field typed into, and write steps like 'Click the \"Save\" button'. Never mention screenshot numbers or write references such as '(screenshot #2)'. Consecutive key presses are typing into the focused field. When the session covers several distinct scenarios or features, return multiple separate test cases, each with its own meaningful steps.";
 	const user = (summary ? `Test case summary from the user:\n${summary}\n\n` : "") + `Recorded steps:\n${s.query}\n\nReference context:\n${s.context.length ? s.context.join("\n---\n") : "(none)"}\n\n` + (s.critique ? `A reviewer found these problems. Fix them:\n${s.critique}\n` : "");
 	return {
 		testCases: (await structured.invoke([{
@@ -848,12 +1112,70 @@ var makeGenerate = (llm, contextPrompt, summary) => async (s) => {
 			content: system
 		}, {
 			role: "user",
-			content: user
+			content: [{
+				type: "text",
+				text: user
+			}, ...images]
 		}])).testCases,
 		iterations: (s.iterations ?? 0) + 1
 	};
 };
-var makeValidate = (judge, summary) => async (s) => {
+var FormatSpecSchema = z.object({
+	requiredLabels: z.array(z.string()).describe("Literal section headings and field labels (without trailing colon) that the prompt's mandatory output format requires on their own line in every output, in order."),
+	forbiddenLabels: z.array(z.string()).describe("Literal headings or labels the prompt's format explicitly excludes but a model might wrongly add (e.g. the prompt says 'No test ID'). Usually empty."),
+	stepSections: z.array(z.string()).describe("Subset of requiredLabels that are lists of numbered steps.")
+});
+var specCache = /* @__PURE__ */ new Map();
+function extractFormatSpec(judge, contextPrompt) {
+	let spec = specCache.get(contextPrompt);
+	if (!spec) {
+		spec = judge.withStructuredOutput(FormatSpecSchema).invoke(`Read the prompt below and extract ONLY the literal layout of its mandatory OUTPUT format (the headings and field labels the generated output must contain). Copy labels exactly as written in the prompt's format template or reference example. Ignore instructions that are not output headings or field labels. If the prompt defines no fixed layout, return empty arrays.
+
+PROMPT:\n${contextPrompt}`).catch((error) => {
+			console.error("Could not extract the output format from the uploaded prompt; using reviewer only.", error);
+			specCache.delete(contextPrompt);
+			return {
+				requiredLabels: [],
+				forbiddenLabels: [],
+				stepSections: []
+			};
+		});
+		specCache.set(contextPrompt, spec);
+	}
+	return spec;
+}
+var escapeRe = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+var labelLine = (label) => new RegExp(`^\\W*${escapeRe(label.trim())}\\W*(?::.*)?$`, "im");
+var numberedCount = (block) => (block.match(/^\s*(?:Step\s*)?\d+[.)]?\s+\S/gim) ?? []).length;
+function structuralIssues(text, spec) {
+	const issues = [];
+	const labels = spec.requiredLabels.map((l) => l.trim()).filter(Boolean);
+	const positions = labels.map((l) => labelLine(l).exec(text)?.index ?? -1);
+	labels.forEach((l, i) => {
+		if (positions[i] === -1) issues.push(`Missing the '${l}' heading/field required by the prompt's output format.`);
+	});
+	for (const f of spec.forbiddenLabels.map((l) => l.trim()).filter(Boolean)) if (labelLine(f).test(text)) issues.push(`Remove '${f}': it is not part of the prompt's output format.`);
+	for (const section of spec.stepSections) {
+		const i = labels.indexOf(section.trim());
+		if (i === -1 || positions[i] === -1) continue;
+		const later = positions.filter((p) => p > positions[i]);
+		const end = later.length ? Math.min(...later) : text.length;
+		if (numberedCount(text.slice(positions[i], end)) === 0) issues.push(`The '${section}' section has no numbered steps.`);
+	}
+	return issues;
+}
+var makeValidate = (judge, summary, contextPrompt) => async (s) => {
+	if (contextPrompt) {
+		const structural = structuralIssues(s.formattedText ?? "", await extractFormatSpec(judge, contextPrompt));
+		if (structural.length) return { critique: structural.map((i) => `- ${i}`).join("\n") };
+		const verdict = await judge.withStructuredOutput(z.object({
+			pass: z.boolean(),
+			critique: z.string()
+		})).invoke(`You are a strict compliance reviewer. Check the generated output against EVERY instruction, rule, section heading (including those framed between double lines), structure, numbering, pattern and example in the uploaded prompt, and against the recorded steps (no invented actions, no generic 'Mouse Click'/'Key Press' steps, no screenshot-number references). Fail if anything is missing, renamed, reordered, or deviates from the prompt's format. Also fail if the output is less detailed (fewer, coarser steps, missing verification steps) than the prompt's example test case, if it uses a placeholder for text that IS available in the knowledge base or screenshots, if any section ignores the prompt's own rules about what belongs in it, or if the knowledge-base reference context has relevant concrete steps, UI text or flows that were ignored. List each violation concisely.
+
+UPLOADED PROMPT:\n${contextPrompt}\n\n` + (summary ? `Test case summary from the user:\n${summary}\n\n` : "") + `Knowledge-base reference context:\n${s.context?.length ? s.context.join("\n---\n") : "(none)"}\n\nRecorded steps:\n${s.query}\n\nGenerated output:\n${s.formattedText}`);
+		return { critique: verdict.pass ? "" : verdict.critique };
+	}
 	const verdict = await judge.withStructuredOutput(z.object({
 		pass: z.boolean(),
 		critique: z.string()
@@ -862,9 +1184,9 @@ var makeValidate = (judge, summary) => async (s) => {
 };
 //#endregion
 //#region electron/graph/index.ts
-var MAX_ITERATIONS = 3;
+var MAX_ITERATIONS = 4;
 function buildGraph(deps) {
-	return new StateGraph(GraphState).addNode("normalize", normalizeActions).addNode("retrieve", deps.useRag ? makeRetrieve(deps.retriever) : async () => ({ context: [] })).addNode("generate", makeGenerate(deps.generator, deps.contextPrompt, deps.testCaseSummary)).addNode("validate", makeValidate(deps.judge, deps.testCaseSummary)).addEdge(START, "normalize").addEdge("normalize", "retrieve").addEdge("retrieve", "generate").addEdge("generate", "validate").addConditionalEdges("validate", (s) => s.critique && s.iterations < MAX_ITERATIONS ? "generate" : END).compile();
+	return new StateGraph(GraphState).addNode("normalize", normalizeActions).addNode("retrieve", deps.useRag ? makeRetrieve(deps.retriever, deps.testCaseSummary) : async () => ({ context: [] })).addNode("generate", makeGenerate(deps.generator, deps.contextPrompt, deps.testCaseSummary)).addNode("validate", makeValidate(deps.judge, deps.testCaseSummary, deps.contextPrompt)).addEdge(START, "normalize").addEdge("normalize", "retrieve").addEdge("retrieve", "generate").addEdge("generate", "validate").addConditionalEdges("validate", (s) => s.critique && s.iterations < MAX_ITERATIONS ? deps.useRag ? "retrieve" : "generate" : END).compile();
 }
 //#endregion
 //#region electron/graph/models.ts
@@ -883,17 +1205,34 @@ function makeChatModel(provider, model, apiKey) {
 }
 //#endregion
 //#region electron/rag/ingest.ts
+async function splitJson(text, splitter) {
+	try {
+		const parsed = JSON.parse(text);
+		if (Array.isArray(parsed) && parsed.length) return parsed.map((item) => JSON.stringify(item, null, 2));
+		return splitter.splitText(JSON.stringify(parsed, null, 2));
+	} catch {
+		return splitter.splitText(text);
+	}
+}
+var MAX_CHUNK = 4e3;
+async function splitText(text, splitter) {
+	const sections = text.split(/\n(?=\s*(?:Summary\s*:|#{1,3}\s|(?:Test\s*Case|TC)[\s_-]*\d+))/i).map((s) => s.trim()).filter(Boolean);
+	const out = [];
+	for (const section of sections) if (section.length <= MAX_CHUNK) out.push(section);
+	else out.push(...await splitter.splitText(section));
+	return out;
+}
 async function ingestFiles(retriever, files) {
 	const splitter = new RecursiveCharacterTextSplitter({
-		chunkSize: 800,
-		chunkOverlap: 120
+		chunkSize: 3e3,
+		chunkOverlap: 200
 	});
 	const docs = [];
 	for (const file of files) {
 		const ext = path$1.extname(file).toLowerCase();
 		if (ext !== ".md" && ext !== ".txt" && ext !== ".json") continue;
 		const text = await fs$1.readFile(file, "utf8");
-		(await splitter.splitText(text)).forEach((c) => docs.push({
+		(ext === ".json" ? await splitJson(text, splitter) : await splitText(text, splitter)).filter((c) => c.trim()).forEach((c) => docs.push({
 			text: c,
 			meta: { source: path$1.basename(file) }
 		}));
@@ -903,7 +1242,7 @@ async function ingestFiles(retriever, files) {
 }
 async function ingestApprovedCases(retriever, cases, feature) {
 	const docs = cases.map((c) => ({
-		text: JSON.stringify(c),
+		text: typeof c === "string" ? c : JSON.stringify(c),
 		meta: {
 			source: "approved-test-case",
 			feature
@@ -927,9 +1266,12 @@ var LanceRetriever = class {
 		return this.db;
 	}
 	async ingest(docs) {
+		docs = docs.filter((d) => d.text.trim().length > 0);
 		if (!docs.length) return;
 		const db = await this.connect();
-		const vectors = await this.embeddings.embedDocuments(docs.map((d) => d.text));
+		const vectors = (await this.embeddings.embedDocuments(docs.map((d) => d.text))).map((v) => Array.from(v ?? [], Number));
+		const dim = vectors[0]?.length ?? 0;
+		if (vectors.length !== docs.length || dim === 0 || vectors.some((v) => v.length !== dim || v.some(Number.isNaN))) throw new Error("Gemini returned no embeddings for the uploaded text. Check the Gemini API key, model access, and quota, then try again.");
 		const rows = docs.map((d, i) => ({
 			vector: vectors[i],
 			text: d.text,
@@ -951,6 +1293,20 @@ var LanceRetriever = class {
 		if (!(await db.tableNames()).includes(TABLE)) return 0;
 		return (await db.openTable(TABLE)).countRows();
 	}
+	static async list(dir) {
+		const db = await lancedb.connect(dir);
+		if (!(await db.tableNames()).includes(TABLE)) return [];
+		return (await (await db.openTable(TABLE)).query().select([
+			"text",
+			"source",
+			"feature"
+		]).toArray()).map((row, i) => ({
+			id: i + 1,
+			text: String(row.text ?? ""),
+			source: String(row.source ?? ""),
+			feature: String(row.feature ?? "")
+		}));
+	}
 	static async clear(dir) {
 		const db = await lancedb.connect(dir);
 		if ((await db.tableNames()).includes(TABLE)) await db.dropTable(TABLE);
@@ -958,8 +1314,30 @@ var LanceRetriever = class {
 };
 //#endregion
 //#region electron/rag/embeddings.ts
+var StrictGeminiEmbeddings = class extends GoogleGenerativeAIEmbeddings {
+	async _embedDocumentsContent(documents) {
+		const self = this;
+		const out = [];
+		for (let i = 0; i < documents.length; i += this.maxBatchSize) {
+			const chunk = documents.slice(i, i + this.maxBatchSize);
+			const res = await self.client.batchEmbedContents({ requests: chunk.map((d) => ({
+				...self._convertToContent(d),
+				taskType: "RETRIEVAL_DOCUMENT"
+			})) });
+			for (const e of res.embeddings ?? []) out.push(e.values ?? []);
+		}
+		return out;
+	}
+	async _embedQueryContent(text) {
+		const self = this;
+		return (await self.client.embedContent({
+			...self._convertToContent(text),
+			taskType: "RETRIEVAL_QUERY"
+		})).embedding?.values ?? [];
+	}
+};
 function makeEmbeddings(geminiApiKey) {
-	return new GoogleGenerativeAIEmbeddings({
+	return new StrictGeminiEmbeddings({
 		model: "gemini-embedding-001",
 		apiKey: geminiApiKey
 	});
@@ -1129,6 +1507,7 @@ function setupIpcHandlers(win) {
 	ipcMain.handle(IPC_CHANNELS["set-gemini-api-key"], async (_, apiKey) => {
 		try {
 			await setGeminiApiKey(apiKey);
+			lanceRetrieverPromise = void 0;
 			return {
 				success: true,
 				message: "Gemini API key saved securely"
@@ -1175,12 +1554,10 @@ function setupIpcHandlers(win) {
 		}
 	});
 	ipcMain.handle(IPC_CHANNELS["generate-test-cases"], async (_, actionData) => {
-		const { actions, screenshots, modelName, promptMode = "detailed", useUploadedPrompt = false } = actionData;
-		const contextPrompt = useUploadedPrompt ? readContextPrompt()?.content : void 0;
-		if (useUploadedPrompt && !contextPrompt) throw new Error("The uploaded context prompt is unavailable. Upload it again in Settings.");
+		const { actions, screenshots, modelName, promptMode = "detailed" } = actionData;
 		try {
-			if (modelName && modelName.includes("gemini")) return await generateTestCasesWithGemini(actions, screenshots, modelName, promptMode, contextPrompt);
-			else return await generateTestCasesWithClaude(actions, screenshots, modelName, contextPrompt);
+			if (modelName && modelName.includes("gemini")) return await generateTestCasesWithGemini(actions, screenshots, modelName, promptMode);
+			else return await generateTestCasesWithClaude(actions, screenshots, modelName);
 		} catch (error) {
 			console.error("Error generating test cases:", error);
 			throw error;
@@ -1209,17 +1586,14 @@ function setupIpcHandlers(win) {
 	ipcMain.handle("testcases:generate", async (event, payload) => {
 		const provider = payload.provider;
 		const judgeProvider = payload.judgeProvider ?? provider;
-		const contextPrompt = payload.useUploadedPrompt ? readContextPrompt()?.content : void 0;
-		if (payload.useUploadedPrompt && !contextPrompt) throw new Error("The uploaded context prompt is unavailable. Upload it again in Settings.");
+		const contextPrompt = readContextPrompt()?.content;
+		if (!payload.useUploadedPrompt) throw new Error("Knowledge-base generation is only available with the uploaded prompt.");
+		if (!contextPrompt) throw new Error("The uploaded context prompt is unavailable. Upload it again in Settings.");
 		const graph = buildGraph({
-			retriever: payload.useRag ? await getLanceRetriever() : {
-				ingest: async () => void 0,
-				search: async () => [],
-				count: async () => 0
-			},
+			retriever: await getLanceRetriever(),
 			generator: makeChatModel(provider, payload.model, await getProviderApiKey(provider)),
 			judge: makeChatModel(judgeProvider, payload.judgeModel ?? payload.model, await getProviderApiKey(judgeProvider)),
-			useRag: payload.useRag ?? false,
+			useRag: payload.useRag !== false,
 			contextPrompt,
 			testCaseSummary: typeof payload.testCaseSummary === "string" ? payload.testCaseSummary.slice(0, 2e3) : void 0
 		});
@@ -1236,6 +1610,10 @@ function setupIpcHandlers(win) {
 			let finalState;
 			for await (const [mode, data] of stream) if (mode === "updates") event.sender.send("testcases:progress", Object.keys(data)[0]);
 			else finalState = data;
+			if (contextPrompt) {
+				if (!finalState?.formattedText?.trim()) throw new Error("The generation graph returned no test cases.");
+				return finalState.formattedText;
+			}
 			if (!finalState?.testCases?.length) throw new Error("The generation graph returned no test cases.");
 			return finalState.testCases;
 		} catch (error) {
@@ -1261,6 +1639,7 @@ function setupIpcHandlers(win) {
 		return { added: await ingestFiles(await getLanceRetriever(), res.filePaths) };
 	});
 	ipcMain.handle("kb:count", async () => (await getLanceRetriever()).count());
+	ipcMain.handle("kb:list", async () => LanceRetriever.list(path.join(app.getPath("userData"), "kb")));
 	ipcMain.handle("kb:clear", async () => {
 		await LanceRetriever.clear(path.join(app.getPath("userData"), "kb"));
 		return { cleared: true };
