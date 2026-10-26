@@ -105,6 +105,7 @@ The app uses `eval/.venv` if present, otherwise `TESTFORGE_PYTHON`, otherwise `p
 
 ## Documentation
 
+- [DeepEval implementation](./MD_Files/DEEPEVAL_IMPLEMENTATION.md) — DeepEval integration flow, architecture, metrics, IPC boundary, security, setup, packaging, and limitations.
 - [LangGraph/RAG branch implementation](./MD_Files/LANGGRAPH_RAG_BRANCH_IMPLEMENTATION.md) — implementation details, flow, storage, and behavior.
 - [RAG implementation details](./MD_Files/TestForge_RAG_Implementation.md) — storage locations, chunking, retrieval, and limits.
 - [LangGraph feature study](./MD_Files/TestForge_LangGraph_Feature_Study.md) — design and feature study.
