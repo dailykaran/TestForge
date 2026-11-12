@@ -31,11 +31,27 @@ GEVAL_METRICS = {
     ),
 }
 ALL_METRICS = list(GEVAL_METRICS) + ["answer_relevancy", "faithfulness", "contextual_relevancy"]
+PROGRESS_PREFIX = "TESTFORGE_PROGRESS:"
 
 
 def read_text(path):
     with open(path, "r", encoding="utf-8") as f:
         return f.read().strip()
+
+
+def emit_progress(completed, total, metric=None, status="evaluating"):
+    print(
+        PROGRESS_PREFIX
+        + json.dumps(
+            {
+                "completed": completed,
+                "total": total,
+                "metric": metric,
+                "status": status,
+            }
+        ),
+        flush=True,
+    )
 
 
 def main():
@@ -90,7 +106,9 @@ def main():
     )
 
     results = []
-    for name in requested:
+    emit_progress(0, len(requested), status="starting")
+    for index, name in enumerate(requested):
+        emit_progress(index, len(requested), metric=name)
         if name in GEVAL_METRICS:
             title, criteria = GEVAL_METRICS[name]
             metric = GEval(
@@ -104,11 +122,13 @@ def main():
         elif name == "answer_relevancy":
             if not summary:
                 results.append({"metric": name, "skipped": "Requires an input/summary file."})
+                emit_progress(index + 1, len(requested), metric=name)
                 continue
             metric = AnswerRelevancyMetric(model=judge, threshold=args.threshold, async_mode=False)
         else:
             if not context:
                 results.append({"metric": name, "skipped": "Requires a RAG context file."})
+                emit_progress(index + 1, len(requested), metric=name)
                 continue
             cls = FaithfulnessMetric if name == "faithfulness" else ContextualRelevancyMetric
             metric = cls(model=judge, threshold=args.threshold, async_mode=False)
@@ -125,6 +145,9 @@ def main():
             )
         except Exception as exc:  # keep other metrics running
             results.append({"metric": name, "error": str(exc)[:500]})
+        emit_progress(index + 1, len(requested), metric=name)
+
+    emit_progress(len(requested), len(requested), status="complete")
 
     scored = [r for r in results if "score" in r]
     print(

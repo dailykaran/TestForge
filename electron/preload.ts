@@ -141,7 +141,11 @@ contextBridge.exposeInMainWorld("testforgeAI", {
     pickFile: (kind: string) => ipcRenderer.invoke('deepeval:pick-file', kind),
     clearFile: (kind: string) => ipcRenderer.invoke('deepeval:clear-file', kind),
     run: (req: unknown) => ipcRenderer.invoke('deepeval:run', req),
+    onProgress: (callback: (progress: { completed: number; total: number; metric?: string; status?: 'starting' | 'evaluating' | 'complete' }) => void) => {
+      const handler = (_event: IpcRendererEvent, progress: { completed: number; total: number; metric?: string; status?: 'starting' | 'evaluating' | 'complete' }) => callback(progress);
+      ipcRenderer.on('deepeval:progress', handler);
+      return () => ipcRenderer.removeListener('deepeval:progress', handler);
+    },
     cancel: () => ipcRenderer.invoke('deepeval:cancel'),
   },
 });
-

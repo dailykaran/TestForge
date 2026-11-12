@@ -113,6 +113,11 @@ electron.contextBridge.exposeInMainWorld("testforgeAI", {
 		pickFile: (kind) => electron.ipcRenderer.invoke("deepeval:pick-file", kind),
 		clearFile: (kind) => electron.ipcRenderer.invoke("deepeval:clear-file", kind),
 		run: (req) => electron.ipcRenderer.invoke("deepeval:run", req),
+		onProgress: (callback) => {
+			const handler = (_event, progress) => callback(progress);
+			electron.ipcRenderer.on("deepeval:progress", handler);
+			return () => electron.ipcRenderer.removeListener("deepeval:progress", handler);
+		},
 		cancel: () => electron.ipcRenderer.invoke("deepeval:cancel")
 	}
 });

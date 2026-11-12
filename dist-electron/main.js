@@ -1347,6 +1347,7 @@ function makeEmbeddings(geminiApiKey) {
 //#region electron/deepEval.ts
 var MAX_FILE_BYTES = 2e5;
 var TIMEOUT_MS = 5 * 6e4;
+var PROGRESS_PREFIX = "TESTFORGE_PROGRESS:";
 var METRICS = new Set([
 	"completeness",
 	"clarity",
@@ -1367,7 +1368,7 @@ function pythonExecutable() {
 	if (fs.existsSync(venvPython)) return venvPython;
 	return process.platform === "win32" ? "python" : "python3";
 }
-function runPython(args, env = {}) {
+function runPython(args, env = {}, onProgress) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(pythonExecutable(), ["run_eval.py", ...args], {
 			cwd: evalDir(),
@@ -1382,9 +1383,25 @@ function runPython(args, env = {}) {
 		activeRun = child;
 		let stdout = "";
 		let stderr = "";
+		let stdoutPending = "";
 		const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
 		child.stdout.on("data", (d) => {
-			stdout += d;
+			const chunk = d.toString();
+			stdout += chunk;
+			if (!onProgress) return;
+			stdoutPending += chunk;
+			const lines = stdoutPending.split("\n");
+			stdoutPending = lines.pop() ?? "";
+			for (const line of lines) {
+				const trimmed = line.trim();
+				if (!trimmed.startsWith(PROGRESS_PREFIX)) continue;
+				try {
+					const progress = JSON.parse(trimmed.slice(19));
+					if (Number.isInteger(progress.completed) && Number.isInteger(progress.total)) onProgress(progress);
+				} catch (error) {
+					console.warn("Could not parse DeepEval progress update:", error);
+				}
+			}
 		});
 		child.stderr.on("data", (d) => {
 			stderr += d;
@@ -1452,7 +1469,7 @@ function setupDeepEvalHandlers() {
 			preview: fs.readFileSync(selected, "utf8")
 		};
 	});
-	ipcMain.handle("deepeval:run", async (_, req) => {
+	ipcMain.handle("deepeval:run", async (event, req) => {
 		if (activeRun) throw new Error("An evaluation is already running.");
 		if (req?.provider !== "claude" && req?.provider !== "gemini") throw new Error("Invalid judge provider.");
 		const model = String(req.model ?? "").trim();
@@ -1477,7 +1494,9 @@ function setupDeepEvalHandlers() {
 		if (req.hasContext) args.push("--context", resolvePicked("context"));
 		const summary = typeof req.summary === "string" ? req.summary.trim().slice(0, 1e3) : "";
 		if (summary) args.push("--input-text", summary);
-		const { stdout, stderr, code } = await runPython(args, req.provider === "claude" ? { ANTHROPIC_API_KEY: apiKey } : { GOOGLE_API_KEY: apiKey });
+		const { stdout, stderr, code } = await runPython(args, req.provider === "claude" ? { ANTHROPIC_API_KEY: apiKey } : { GOOGLE_API_KEY: apiKey }, (progress) => {
+			if (!event.sender.isDestroyed()) event.sender.send("deepeval:progress", progress);
+		});
 		if (code !== 0) throw new Error(stderr.trim().split("\n").pop()?.replace(apiKey, "***") || "Evaluation failed or was cancelled.");
 		return lastJsonLine(stdout);
 	});

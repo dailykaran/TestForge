@@ -45,6 +45,12 @@ export function DeepEvalDialog({ onClose }: { onClose: () => void }) {
   const [metrics, setMetrics] = useState<string[]>(['completeness', 'clarity', 'correctness', 'format']);
   const [threshold, setThreshold] = useState(0.5);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<{
+    completed: number;
+    total: number;
+    metric?: string;
+    status?: 'starting' | 'evaluating' | 'complete';
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DeepEvalResult | null>(null);
 
@@ -57,7 +63,9 @@ export function DeepEvalDialog({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     window.testforgeAI.deepEval.check().then(setEnv).catch((e) => setEnv({ ok: false, message: String(e) }));
+    const unsubscribeProgress = window.testforgeAI.deepEval.onProgress(setProgress);
     return () => {
+      unsubscribeProgress();
       (['testcase', 'context'] as Kind[]).forEach((k) => window.testforgeAI.deepEval.clearFile(k));
       window.testforgeAI.deepEval.cancel();
     };
@@ -82,14 +90,15 @@ export function DeepEvalDialog({ onClose }: { onClose: () => void }) {
     setMetrics((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
 
   const run = async () => {
+    const active = metrics.filter((id) => {
+      const need = METRICS.find((m) => m.id === id)?.needs;
+      return !need || (need === 'summary' ? summary.trim() : files.context);
+    });
     setRunning(true);
+    setProgress({ completed: 0, total: active.length, status: 'starting' });
     setError(null);
     setResult(null);
     try {
-      const active = metrics.filter((id) => {
-        const need = METRICS.find((m) => m.id === id)?.needs;
-        return !need || (need === 'summary' ? summary.trim() : files.context);
-      });
       setResult(await window.testforgeAI.deepEval.run({
         provider,
         model: model.trim(),
@@ -102,6 +111,7 @@ export function DeepEvalDialog({ onClose }: { onClose: () => void }) {
       setError((e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
     } finally {
       setRunning(false);
+      setProgress(null);
     }
   };
 
@@ -217,6 +227,34 @@ export function DeepEvalDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {error && <div className="p-3 rounded-lg bg-red-500/10 text-red-300 text-sm">{error}</div>}
+
+        {running && progress && (
+          <div className="space-y-1.5" aria-live="polite">
+            <div className="flex justify-between gap-3 text-xs text-slate-400">
+              <span>
+                {progress.status === 'complete'
+                  ? 'Evaluation complete'
+                  : progress.metric
+                    ? `Evaluating ${label(progress.metric)}`
+                    : 'Preparing evaluation…'}
+              </span>
+              <span>{progress.total ? Math.round((progress.completed / progress.total) * 100) : 0}%</span>
+            </div>
+            <div
+              role="progressbar"
+              aria-label="Evaluation progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress.total ? Math.round((progress.completed / progress.total) * 100) : 0}
+              className="h-2 overflow-hidden rounded-full bg-slate-800"
+            >
+              <div
+                className="h-full rounded-full bg-blue-500 transition-[width] duration-300"
+                style={{ width: `${progress.total ? (progress.completed / progress.total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           {running && (

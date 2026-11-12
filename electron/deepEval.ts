@@ -6,9 +6,11 @@ import { getClaudeApiKey, getGeminiApiKey } from './keyStore';
 
 type Provider = 'claude' | 'gemini';
 type PickKind = 'testcase' | 'context';
+type EvalProgress = { completed: number; total: number; metric?: string; status?: 'starting' | 'evaluating' | 'complete' };
 
 const MAX_FILE_BYTES = 200_000;
 const TIMEOUT_MS = 5 * 60_000;
+const PROGRESS_PREFIX = 'TESTFORGE_PROGRESS:';
 const METRICS = new Set([
   'completeness', 'clarity', 'correctness', 'format',
   'answer_relevancy', 'faithfulness', 'contextual_relevancy',
@@ -31,7 +33,11 @@ function pythonExecutable(): string {
   return process.platform === 'win32' ? 'python' : 'python3';
 }
 
-function runPython(args: string[], env: NodeJS.ProcessEnv = {}): Promise<{ stdout: string; stderr: string; code: number | null }> {
+function runPython(
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+  onProgress?: (progress: EvalProgress) => void,
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
     const child = spawn(pythonExecutable(), ['run_eval.py', ...args], {
       cwd: evalDir(),
@@ -41,8 +47,26 @@ function runPython(args: string[], env: NodeJS.ProcessEnv = {}): Promise<{ stdou
     activeRun = child;
     let stdout = '';
     let stderr = '';
+    let stdoutPending = '';
     const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
-    child.stdout.on('data', (d) => { stdout += d; });
+    child.stdout.on('data', (d) => {
+      const chunk = d.toString();
+      stdout += chunk;
+      if (!onProgress) return;
+      stdoutPending += chunk;
+      const lines = stdoutPending.split('\n');
+      stdoutPending = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith(PROGRESS_PREFIX)) continue;
+        try {
+          const progress = JSON.parse(trimmed.slice(PROGRESS_PREFIX.length)) as EvalProgress;
+          if (Number.isInteger(progress.completed) && Number.isInteger(progress.total)) onProgress(progress);
+        } catch (error) {
+          console.warn('Could not parse DeepEval progress update:', error);
+        }
+      }
+    });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', (err) => { clearTimeout(timer); activeRun = null; reject(err); });
     child.on('close', (code) => {
@@ -94,7 +118,7 @@ export function setupDeepEvalHandlers() {
     return { name: path.basename(selected), preview: fs.readFileSync(selected, 'utf8') };
   });
 
-  ipcMain.handle('deepeval:run', async (_, req: {
+  ipcMain.handle('deepeval:run', async (event, req: {
     provider: Provider; model: string; metrics: string[]; threshold: number;
     hasContext?: boolean; summary?: string;
   }) => {
@@ -116,7 +140,9 @@ export function setupDeepEvalHandlers() {
     if (summary) args.push('--input-text', summary);
 
     const env = req.provider === 'claude' ? { ANTHROPIC_API_KEY: apiKey } : { GOOGLE_API_KEY: apiKey };
-    const { stdout, stderr, code } = await runPython(args, env);
+    const { stdout, stderr, code } = await runPython(args, env, (progress) => {
+      if (!event.sender.isDestroyed()) event.sender.send('deepeval:progress', progress);
+    });
     if (code !== 0) {
       throw new Error(stderr.trim().split('\n').pop()?.replace(apiKey, '***') || 'Evaluation failed or was cancelled.');
     }

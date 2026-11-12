@@ -69,6 +69,12 @@ declare global {
           hasContext?: boolean;
           summary?: string;
         }) => Promise<DeepEvalResult>;
+        onProgress: (callback: (progress: {
+          completed: number;
+          total: number;
+          metric?: string;
+          status?: 'starting' | 'evaluating' | 'complete';
+        }) => void) => () => void;
         cancel: () => Promise<{ cancelled: boolean }>;
       };
     };
