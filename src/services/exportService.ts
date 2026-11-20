@@ -2,7 +2,7 @@ import { Document, Paragraph, TextRun, Packer } from 'docx';
 
 const MIME_TYPES = {
   DOCX: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  TXT: 'text/plain',
+  MARKDOWN: 'text/markdown',
 } as const;
 
 /**
@@ -42,15 +42,15 @@ export async function exportToDocx(testCasesContent: string): Promise<Blob> {
 }
 
 /**
- * Converts test case content to a plain text format
+ * Exports test case content as Markdown
  * @param testCasesContent - The test case content to export
- * @returns A Blob containing the text file
+ * @returns A Blob containing the Markdown file
  * @throws Error if content is invalid
  */
-export function exportToTxt(testCasesContent: string): Blob {
+export function exportToMarkdown(testCasesContent: string): Blob {
   if (!testCasesContent?.trim()) {
     throw new Error('Content cannot be empty');
   }
 
-  return new Blob([testCasesContent], { type: MIME_TYPES.TXT });
+  return new Blob([testCasesContent], { type: MIME_TYPES.MARKDOWN });
 }

@@ -11,7 +11,7 @@ TestForge is an Electron desktop app that records user interactions and uses AI 
 - Optionally augment uploaded-prompt generation with a local LanceDB knowledge base of reference documents and approved test cases.
 - Browse, search, filter, and copy indexed knowledge-base chunks from Settings.
 - Review generated cases, inspect recorded screenshots, and approve uploaded-prompt results for future retrieval.
-- Review and export generated cases as `.docx` or `.txt`.
+- Review and export generated cases as `.docx` or `.md`.
 - Store provider API keys in the operating system keychain.
 
 ## Requirements
@@ -92,16 +92,16 @@ The renderer communicates with the main process through the preload bridge. Prov
 
 ## Deep Eval (Python DeepEval)
 
-The **Deep Eval** button in Review opens a dialog that evaluates one generated test case `.txt` file with an LLM judge (Claude or Gemini). It uses the Python [DeepEval](https://github.com/confident-ai/deepeval) library, runs only from this dialog, and is not used anywhere else in the app.
+The **Deep Eval** button in Review opens a dialog that evaluates one generated test case `.md` file with an LLM judge (Claude or Gemini). It uses the Python [DeepEval](https://github.com/confident-ai/deepeval) library, runs only from this dialog, and is not used anywhere else in the app.
 
 Setup (one time, Python 3.9+):
 
 ```bash
 python -m venv eval/.venv
-eval/.venv/Scripts/pip install -r eval/requirements.txt   # Windows; use eval/.venv/bin/pip on macOS/Linux
+eval\.venv\Scripts\python -m pip install -r eval\requirements.txt   # Windows (cmd/PowerShell); on macOS/Linux use eval/.venv/bin/python -m pip install -r eval/requirements.txt
 ```
 
-The app uses `eval/.venv` if present, otherwise `TESTFORGE_PYTHON`, otherwise `python`/`python3`. The judge uses the API key saved in Settings, passed to the Python process by environment variable. Metrics: completeness, clarity, correctness, format (GEval), plus answer relevancy (needs a short summary typed into the dialog) and faithfulness / contextual relevancy (need a RAG context `.txt`). The judge is chosen with a Gemini/Claude toggle and a model list (a custom ID is also accepted); it defaults to the Settings judge model. You can also run it directly: `python eval/run_eval.py --file tc.txt --provider gemini --model gemini-2.5-flash --input-text "Login flow"`.
+The app uses `eval/.venv` if present, otherwise `TESTFORGE_PYTHON`, otherwise `python`/`python3`. The judge uses the API key saved in Settings, passed to the Python process by environment variable. Metrics: completeness, clarity, correctness, format (GEval), plus answer relevancy (needs a short summary typed into the dialog) and faithfulness / contextual relevancy (need a RAG context `.md`). The judge is chosen with a Gemini/Claude toggle and a model list (a custom ID is also accepted); it defaults to the Settings judge model. You can also run it directly: `python eval/run_eval.py --file tc.md --provider gemini --model gemini-2.5-flash --input-text "Login flow"`.
 
 ## Documentation
 

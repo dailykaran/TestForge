@@ -13,10 +13,10 @@ The feature is intentionally isolated from normal test-case generation:
 - The renderer does not receive or store provider API keys.
 - Evaluation input is selected through the native Electron file picker.
 
-The current implementation evaluates a single `.txt` test-case file per run. It can optionally compare that output with:
+The current implementation evaluates a single `.md` test-case file per run. It can optionally compare that output with:
 
 1. A short summary typed in the dialog.
-2. A `.txt` RAG context file containing requirements, specifications, retrieved reference chunks, or approved examples.
+2. A `.md` RAG context file containing requirements, specifications, retrieved reference chunks, or approved examples.
 
 The result contains a score, threshold, pass/fail status, and judge reasoning for each selected metric.
 
@@ -102,12 +102,12 @@ The result contains a score, threshold, pass/fail status, and judge reasoning fo
 
 ### 4.2 Selecting the test-case file
 
-The user clicks **Choose .txt** or **Change** for the test-case file.
+The user clicks **Choose .md** or **Change** for the test-case file.
 
 The renderer sends only the logical file kind (`testcase`) to the main process. The main process:
 
 1. Opens the native Electron file picker.
-2. Restricts the picker to `.txt` files.
+2. Restricts the picker to `.md` files.
 3. Verifies that the selected path is a regular file.
 4. Enforces the current 200 KB maximum.
 5. Stores the selected path in a main-process-only map.
@@ -129,7 +129,7 @@ The optional RAG context picker follows the same native-dialog flow as the test-
 - Previously approved test cases.
 - UI or workflow behavior notes.
 
-The selected context file is passed to Python as one retrieval-context item. It is not automatically read from LanceDB by DeepEval. The user must export or prepare the relevant reference text as a `.txt` file.
+The selected context file is passed to Python as one retrieval-context item. It is not automatically read from LanceDB by DeepEval. The user must export or prepare the relevant reference text as a `.md` file.
 
 Selecting a context file enables:
 
@@ -272,12 +272,12 @@ DEEPEVAL_TELEMETRY_OPT_OUT=YES
 `run_eval.py` is a standalone CLI. It accepts:
 
 ```text
---file <test-case.txt>
+--file <test-case.md>
 --provider claude|gemini
 --model <model-id>
 --metrics <comma-separated-metric-names>
 --threshold <0..1>
---context <context.txt>
+--context <context.md>
 --input-text <summary>
 --check
 ```
@@ -310,7 +310,7 @@ LLMTestCase(
 )
 ```
 
-The generated `.txt` file is the `actual_output`. The typed summary is the `input`. The optional RAG file becomes `retrieval_context`.
+The generated `.md` file is the `actual_output`. The typed summary is the `input`. The optional RAG file becomes `retrieval_context`.
 
 ### 6.2 `judge.py`
 
@@ -396,7 +396,7 @@ The Python process emits a JSON object with this shape:
 
 ```json
 {
-  "file": "login-test-case.txt",
+  "file": "login-test-case.md",
   "provider": "gemini",
   "model": "gemini-4-argon",
   "results": [
@@ -479,7 +479,7 @@ Recommended development setup:
 
 ```powershell
 python -m venv eval/.venv
-eval/.venv/Scripts/pip install -r eval/requirements.txt
+eval\.venv\Scripts\python -m pip install -r eval\requirements.txt
 ```
 
 On macOS or Linux:
@@ -535,7 +535,7 @@ Bundling Python with PyInstaller is a possible future distribution improvement, 
 
 ### Input controls
 
-- Only `.txt` files are offered by the native picker.
+- Only `.md` files are accepted by the native picker.
 - Selected files must be regular files.
 - File size is limited to 200 KB.
 - Model IDs are restricted to a safe character set and length.
@@ -588,7 +588,7 @@ Typical errors and user-visible behavior:
 
 ```powershell
 python eval/run_eval.py `
-  --file .\samples\login-test-case.txt `
+  --file .\samples\login-test-case.md `
   --provider gemini `
   --model gemini-4-argon `
   --metrics completeness,clarity,correctness,format `
@@ -599,7 +599,7 @@ python eval/run_eval.py `
 
 ```powershell
 python eval/run_eval.py `
-  --file .\samples\login-test-case.txt `
+  --file .\samples\login-test-case.md `
   --provider claude `
   --model claude-sonnet-4-5 `
   --metrics completeness,answer_relevancy `
@@ -610,11 +610,11 @@ python eval/run_eval.py `
 
 ```powershell
 python eval/run_eval.py `
-  --file .\samples\login-test-case.txt `
+  --file .\samples\login-test-case.md `
   --provider gemini `
   --model gemini-4-argon `
   --metrics completeness,faithfulness,contextual_relevancy `
-  --context .\samples\login-reference.txt
+  --context .\samples\login-reference.md
 ```
 
 ## 15. Example input files
@@ -673,7 +673,7 @@ A real provider score requires a valid Claude or Gemini API key configured in Te
 ### Current limitations
 
 1. Evaluation is one test-case file per run.
-2. Only text files are accepted.
+2. Only Markdown files are accepted through the app.
 3. RAG context is supplied manually as a text file; the evaluator does not query LanceDB directly.
 4. The packaged application does not include Python or the Python dependencies.
 5. The model list is maintained in the React component and may need updates as provider model IDs change.

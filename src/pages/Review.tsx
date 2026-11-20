@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { ArrowLeft, PlayCircle, Download, FileText, CheckCircle2, Wand2, Image as ImageIcon, Gauge } from 'lucide-react';
-import { exportToDocx, exportToTxt } from '../services/exportService';
+import { exportToDocx, exportToMarkdown } from '../services/exportService';
 import { DeepEvalDialog } from '../components/DeepEvalDialog';
 
 async function downloadScreenshotFile(screenshotPath: string, actionLabel: string) {
@@ -289,13 +289,13 @@ export default function Review() {
     a.click();
   };
 
-  const handleExportTxt = () => {
+  const handleExportMarkdown = () => {
     if (!testCases) return;
-    const blob = exportToTxt(testCases);
+    const blob = exportToMarkdown(testCases);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `TestCases_${Date.now()}.txt`;
+    a.download = `TestCases_${Date.now()}.md`;
     a.click();
   };
   
@@ -471,14 +471,14 @@ export default function Review() {
                   {isIngestingApproved ? 'Adding...' : 'Approve for KB'}
                 </button>
                 )}
-                 <button onClick={() => setShowDeepEval(true)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-purple-400 transition-colors text-sm font-medium" title="Evaluate a test case .txt file with DeepEval">
+                 <button onClick={() => setShowDeepEval(true)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-purple-400 transition-colors text-sm font-medium" title="Evaluate a test case .md file with DeepEval">
                    <Gauge className="w-4 h-4" /> Deep Eval
                  </button>
                  <button onClick={handleExportDocx} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-blue-400 transition-colors text-sm font-medium">
                    <Download className="w-4 h-4" /> DOCX
                  </button>
-                 <button onClick={handleExportTxt} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors text-sm font-medium">
-                   <FileText className="w-4 h-4" /> TXT
+                 <button onClick={handleExportMarkdown} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors text-sm font-medium">
+                   <FileText className="w-4 h-4" /> MD
                  </button>
                </div>
              )}

@@ -120,13 +120,13 @@ export function DeepEvalDialog({ onClose }: { onClose: () => void }) {
     const url = URL.createObjectURL(new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `deepeval_${result.file.replace(/\.txt$/, '')}.json`;
+    a.download = `deepeval_${result.file.replace(/\.md$/i, '')}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const HELP: Record<Kind, string> = {
-    testcase: 'The generated test case (.txt) to evaluate.',
+    testcase: 'The generated test case (.md) to evaluate.',
     context: 'Reference text the generator used (requirements, spec excerpts, approved examples), e.g. "After 3 failed logins the account locks for 15 min". Enables Faithfulness and Contextual relevancy.',
   };
 
@@ -137,7 +137,7 @@ export function DeepEvalDialog({ onClose }: { onClose: () => void }) {
       <div className="flex items-center gap-2">
         <button onClick={() => pick(kind)} disabled={running}
           className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm">
-          <FileText className="w-4 h-4" /> {files[kind] ? 'Change' : 'Choose .txt'}
+          <FileText className="w-4 h-4" /> {files[kind] ? 'Change' : 'Choose .md'}
         </button>
         {files[kind] && (
           <>
@@ -168,7 +168,9 @@ export function DeepEvalDialog({ onClose }: { onClose: () => void }) {
             <div>
               {env.message}
               <div className="text-xs mt-1 text-amber-400/80">
-                Setup: <code>python -m venv eval/.venv</code> then <code>eval/.venv/Scripts/pip install -r eval/requirements.txt</code>
+                Setup (run each line separately from the project root):
+                <div><code>python -m venv eval\.venv</code></div>
+                <div><code>eval\.venv\Scripts\python -m pip install -r eval\requirements.txt</code></div>
               </div>
             </div>
           </div>

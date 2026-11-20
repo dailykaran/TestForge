@@ -1453,8 +1453,8 @@ function setupDeepEvalHandlers() {
 		const options = {
 			properties: ["openFile"],
 			filters: [{
-				name: "Text files",
-				extensions: ["txt"]
+				name: "Markdown files",
+				extensions: ["md"]
 			}]
 		};
 		const owner = BrowserWindow.fromWebContents(event.sender);
@@ -1462,7 +1462,7 @@ function setupDeepEvalHandlers() {
 		const selected = res.filePaths[0];
 		if (res.canceled || !selected) return null;
 		const stat = fs.statSync(selected);
-		if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error("The file must be a .txt file of 200 KB or less.");
+		if (path.extname(selected).toLowerCase() !== ".md" || !stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error("The file must be a .md file of 200 KB or less.");
 		pickedPaths.set(kind, selected);
 		return {
 			name: path.basename(selected),
